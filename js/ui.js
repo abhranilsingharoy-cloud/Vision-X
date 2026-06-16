@@ -11,14 +11,14 @@ const cocoClasses = [
     'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'
 ];
 
-/**
- * UI module for rendering all 7 modes.
- */
 class UI {
     constructor() {
         this.canvas = document.getElementById('output-canvas');
         this.ctx = this.canvas.getContext('2d');
         this.video = document.getElementById('video');
+        
+        // Hide video element, we will manually draw it for advanced FX
+        this.video.style.opacity = '0';
         
         // Dashboard elements
         this.fpsCounter = document.getElementById('fps-counter');
@@ -45,12 +45,16 @@ class UI {
         this.lastAlertTime = 0;
         this.alertCooldown = 3000;
         
-        // Pre-populate dropdown
         this.initTargetDropdown();
         
-        // Tripwire state
+        // Stateful Variables for Modes
         this.tripwireCounts = { left: 0, right: 0 };
         this.lastCentroids = {};
+        this.trails = {}; // { id: [{x,y}, ...] }
+        
+        this.securityLockdownEnd = 0;
+        
+        this.focusBox = { x: 0, y: 0, width: 0, height: 0, active: false };
     }
 
     initTargetDropdown() {
@@ -80,14 +84,20 @@ class UI {
     resetContext() {
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
         this.ctx.filter = 'none';
+        this.ctx.globalCompositeOperation = 'source-over';
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
-    // MODE 1: General Tracking + Advanced Target Lock
+    drawVideoFeed() {
+        this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
+    }
+
+    // MODE 1: General Tracking
     drawDetections(predictions) {
         this.resetContext();
-        const counts = {};
+        this.drawVideoFeed();
         
+        const counts = {};
         const targetClass = this.targetSelector ? this.targetSelector.value : 'none';
         const sensitivity = this.sensitivitySlider ? parseInt(this.sensitivitySlider.value) / 100 : 0.6;
         let targetDetected = false;
@@ -104,32 +114,28 @@ class UI {
 
             if (isTarget) {
                 targetDetected = true;
-                const color = '#ff003c'; // Danger red for locked target
+                const color = '#ff003c'; 
                 
-                // Draw target box
                 this.ctx.strokeStyle = color;
                 this.ctx.lineWidth = 3;
                 this.ctx.strokeRect(x, y, width, height);
                 
-                // Draw internal sniper crosshairs
                 const cx = x + width/2;
                 const cy = y + height/2;
                 this.ctx.beginPath();
-                this.ctx.moveTo(cx, y); this.ctx.lineTo(cx, y + 20); // Top down
-                this.ctx.moveTo(cx, y + height); this.ctx.lineTo(cx, y + height - 20); // Bottom up
-                this.ctx.moveTo(x, cy); this.ctx.lineTo(x + 20, cy); // Left right
-                this.ctx.moveTo(x + width, cy); this.ctx.lineTo(x + width - 20, cy); // Right left
+                this.ctx.moveTo(cx, y); this.ctx.lineTo(cx, y + 20); 
+                this.ctx.moveTo(cx, y + height); this.ctx.lineTo(cx, y + height - 20); 
+                this.ctx.moveTo(x, cy); this.ctx.lineTo(x + 20, cy); 
+                this.ctx.moveTo(x + width, cy); this.ctx.lineTo(x + width - 20, cy); 
                 this.ctx.stroke();
                 
-                // Label
                 const label = `LOCKED: ${className.toUpperCase()} [${(score*100).toFixed(0)}%]`;
-                this.ctx.font = '800 14px JetBrains Mono, monospace';
+                this.ctx.font = '800 14px JetBrains Mono';
                 this.ctx.textBaseline = 'top';
                 this.ctx.fillStyle = color;
                 this.ctx.fillText(label, x, y - 20);
                 
             } else {
-                // Standard Draw
                 const color = this.getColor(className);
                 this.ctx.strokeStyle = color;
                 this.ctx.lineWidth = 2;
@@ -145,7 +151,7 @@ class UI {
                 this.ctx.stroke();
 
                 const label = `[${className.toUpperCase()} : ${id}]`;
-                this.ctx.font = '700 12px JetBrains Mono, monospace';
+                this.ctx.font = '700 12px JetBrains Mono';
                 this.ctx.textBaseline = 'top';
                 this.ctx.fillStyle = '#000000';
                 this.ctx.fillRect(x, y - 20, this.ctx.measureText(label).width + 8, 20);
@@ -167,14 +173,45 @@ class UI {
     drawSecurityMode(predictions) {
         this.resetContext();
         
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        
+        const now = Date.now();
         const people = predictions.filter(p => p.class === 'person');
+        
+        let inLockdown = false;
+        if (people.length > 0) {
+            this.securityLockdownEnd = now + 5000; // 5 seconds lockdown
+        }
+        if (now < this.securityLockdownEnd) {
+            inLockdown = true;
+        }
+
+        // Night vision or lockdown alarm effect
+        if (inLockdown) {
+            // Intense red vignette
+            this.ctx.filter = 'grayscale(100%) brightness(40%)';
+            this.drawVideoFeed();
+            this.ctx.filter = 'none';
+            this.ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        } else {
+            // Calm night vision
+            this.ctx.filter = 'grayscale(100%) brightness(70%) contrast(120%)';
+            this.drawVideoFeed();
+            this.ctx.filter = 'none';
+            this.ctx.fillStyle = 'rgba(0, 255, 100, 0.05)';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        }
         
         people.forEach(pred => {
             const [x, y, width, height] = pred.bbox;
             const id = pred.id || 'U';
+            
+            // Calculate Threat Level based on size
+            const screenArea = this.canvas.width * this.canvas.height;
+            const targetArea = width * height;
+            const sizeRatio = targetArea / screenArea;
+            let threatLevel = "LOW";
+            if (sizeRatio > 0.1) threatLevel = "MEDIUM";
+            if (sizeRatio > 0.25) threatLevel = "HIGH (DEFCON 1)";
             
             this.ctx.strokeStyle = '#ff003c';
             this.ctx.lineWidth = 3;
@@ -183,7 +220,7 @@ class UI {
             this.ctx.fillStyle = 'rgba(255, 0, 60, 0.2)';
             this.ctx.fillRect(x, y, width, height);
 
-            const label = `THREAT : ${id}`;
+            const label = `THREAT : ${id} | LVL: ${threatLevel}`;
             this.ctx.font = '700 14px JetBrains Mono';
             this.ctx.textBaseline = 'top';
             this.ctx.fillStyle = '#ff003c';
@@ -193,6 +230,8 @@ class UI {
         if (people.length > 0) {
             this.triggerAlert("INTRUDER DETECTED");
             if(window.logger && Math.random() < 0.05) logger.addLog("INTRUDER DETECTED", 1.0);
+        } else if (inLockdown) {
+            this.triggerAlert("LOCKDOWN ACTIVE");
         }
 
         this.updateDashboard({'THREATS': people.length}, people.length);
@@ -201,6 +240,7 @@ class UI {
     // MODE 3: Analytics Tripwire
     drawTripwireMode(predictions) {
         this.resetContext();
+        this.drawVideoFeed();
         
         const lineX = this.canvas.width / 2;
         
@@ -222,6 +262,22 @@ class UI {
             const cy = y + height/2;
             currentCentroids[pred.id] = cx;
 
+            if (!this.trails[pred.id]) this.trails[pred.id] = [];
+            this.trails[pred.id].push({x: cx, y: cy});
+            if (this.trails[pred.id].length > 20) this.trails[pred.id].shift();
+
+            // Draw Trails
+            if (this.trails[pred.id].length > 1) {
+                this.ctx.beginPath();
+                this.ctx.strokeStyle = '#a200ff';
+                this.ctx.lineWidth = 3;
+                this.ctx.moveTo(this.trails[pred.id][0].x, this.trails[pred.id][0].y);
+                for(let i=1; i<this.trails[pred.id].length; i++) {
+                    this.ctx.lineTo(this.trails[pred.id][i].x, this.trails[pred.id][i].y);
+                }
+                this.ctx.stroke();
+            }
+
             if (this.lastCentroids[pred.id] !== undefined) {
                 const prevX = this.lastCentroids[pred.id];
                 if (prevX < lineX && cx >= lineX) {
@@ -239,6 +295,11 @@ class UI {
             this.ctx.fill();
         });
 
+        // Cleanup old trails
+        for (let id in this.trails) {
+            if (!currentCentroids[id]) delete this.trails[id];
+        }
+
         this.lastCentroids = currentCentroids;
 
         this.ctx.font = '800 24px JetBrains Mono';
@@ -255,14 +316,30 @@ class UI {
     // MODE 4: Privacy Redaction
     drawPrivacyMode(predictions) {
         this.resetContext();
+        this.drawVideoFeed();
         
         const people = predictions.filter(p => p.class === 'person');
         
         people.forEach(pred => {
-            const [x, y, width, height] = pred.bbox;
+            let [x, y, width, height] = pred.bbox;
+            // Expand redaction slightly to ensure full coverage
+            const pad = 20;
+            x -= pad; y -= pad; width += pad*2; height += pad*2;
+            if(x < 0) x = 0;
+            if(y < 0) y = 0;
+            if(x+width > this.canvas.width) width = this.canvas.width - x;
+            if(y+height > this.canvas.height) height = this.canvas.height - y;
             
-            this.ctx.fillStyle = '#000000';
-            this.ctx.fillRect(x, y, width, height);
+            // Pixelation mosaic effect
+            const pxSize = 25; // Massive pixels
+            this.ctx.imageSmoothingEnabled = false;
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = width / pxSize;
+            tempCanvas.height = height / pxSize;
+            const tctx = tempCanvas.getContext('2d');
+            tctx.drawImage(this.video, x, y, width, height, 0, 0, tempCanvas.width, tempCanvas.height);
+            this.ctx.drawImage(tempCanvas, 0, 0, tempCanvas.width, tempCanvas.height, x, y, width, height);
+            this.ctx.imageSmoothingEnabled = true;
             
             this.ctx.strokeStyle = '#00ff66';
             this.ctx.lineWidth = 2;
@@ -270,15 +347,26 @@ class UI {
             
             this.ctx.font = '700 12px JetBrains Mono';
             this.ctx.fillStyle = '#00ff66';
-            this.ctx.fillText('[REDACTED]', x + 5, y + height / 2);
+            this.ctx.fillText('[REDACTED]', x + 5, y + 15);
         });
 
         this.updateDashboard({'REDACTED': people.length}, people.length);
     }
 
     // MODE 5: Pose Estimation
+    getAngle(a, b, c) {
+        const ang1 = Math.atan2(a.y - b.y, a.x - b.x);
+        const ang2 = Math.atan2(c.y - b.y, c.x - b.x);
+        let deg = (ang1 - ang2) * (180 / Math.PI);
+        if (deg < 0) deg += 360;
+        if (deg > 180) deg = 360 - deg;
+        return deg;
+    }
+
     drawPoseMode(poses) {
         this.resetContext();
+        this.drawVideoFeed();
+
         if (!poses || poses.length === 0) {
             this.updateDashboard({'POSES': 0}, 0);
             return;
@@ -287,19 +375,41 @@ class UI {
         poses.forEach(pose => {
             if(pose.score < 0.3) return;
 
+            const kpDict = {};
             pose.keypoints.forEach(kp => {
+                kpDict[kp.name] = kp;
                 if (kp.score > 0.3) {
                     this.ctx.fillStyle = '#fcee0a';
                     this.ctx.beginPath();
-                    this.ctx.arc(kp.x, kp.y, 4, 0, 2*Math.PI);
+                    this.ctx.arc(kp.x, kp.y, 5, 0, 2*Math.PI);
                     this.ctx.fill();
                 }
             });
 
+            // Calculate Angles
+            this.ctx.font = '700 12px JetBrains Mono';
+            this.ctx.fillStyle = '#00ff66';
+
+            // Left Elbow
+            if (kpDict['left_shoulder']?.score > 0.3 && kpDict['left_elbow']?.score > 0.3 && kpDict['left_wrist']?.score > 0.3) {
+                const angle = this.getAngle(kpDict['left_shoulder'], kpDict['left_elbow'], kpDict['left_wrist']);
+                this.ctx.fillText(`${angle.toFixed(0)}°`, kpDict['left_elbow'].x + 10, kpDict['left_elbow'].y);
+            }
+            // Right Elbow
+            if (kpDict['right_shoulder']?.score > 0.3 && kpDict['right_elbow']?.score > 0.3 && kpDict['right_wrist']?.score > 0.3) {
+                const angle = this.getAngle(kpDict['right_shoulder'], kpDict['right_elbow'], kpDict['right_wrist']);
+                this.ctx.fillText(`${angle.toFixed(0)}°`, kpDict['right_elbow'].x + 10, kpDict['right_elbow'].y);
+            }
+            // Left Knee
+            if (kpDict['left_hip']?.score > 0.3 && kpDict['left_knee']?.score > 0.3 && kpDict['left_ankle']?.score > 0.3) {
+                const angle = this.getAngle(kpDict['left_hip'], kpDict['left_knee'], kpDict['left_ankle']);
+                this.ctx.fillText(`${angle.toFixed(0)}°`, kpDict['left_knee'].x + 10, kpDict['left_knee'].y);
+            }
+
             if(poseDetection.util.getAdjacentPairs) {
                 const adjacentKeyPoints = poseDetection.util.getAdjacentPairs(poseDetection.SupportedModels.MoveNet);
                 this.ctx.strokeStyle = '#00f3ff';
-                this.ctx.lineWidth = 2;
+                this.ctx.lineWidth = 3;
                 adjacentKeyPoints.forEach(([i, j]) => {
                     const kp1 = pose.keypoints[i];
                     const kp2 = pose.keypoints[j];
@@ -319,8 +429,12 @@ class UI {
     // MODE 6: Smart Focus
     drawFocusMode(predictions) {
         this.resetContext();
+        
         const people = predictions.filter(p => p.class === 'person');
         
+        let targetCx = this.canvas.width / 2;
+        let targetCy = this.canvas.height / 2;
+
         if (people.length > 0) {
             let target = people[0];
             let maxArea = 0;
@@ -333,24 +447,56 @@ class UI {
             });
 
             const [x, y, width, height] = target.bbox;
+            targetCx = x + width/2;
+            targetCy = y + height/2;
             
-            this.ctx.fillStyle = 'rgba(0,0,0,0.85)';
-            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-            
-            this.ctx.globalCompositeOperation = 'destination-out';
-            this.ctx.fillStyle = 'white';
-            this.ctx.fillRect(x - 20, y - 20, width + 40, height + 40);
-            
-            this.ctx.globalCompositeOperation = 'source-over';
-            
+            if (!this.focusBox.active) {
+                this.focusBox.x = targetCx;
+                this.focusBox.y = targetCy;
+                this.focusBox.active = true;
+            }
+        } else {
+            this.focusBox.active = false;
+        }
+
+        // Smooth Lerp (PTZ camera smoothing)
+        this.focusBox.x += (targetCx - this.focusBox.x) * 0.1;
+        this.focusBox.y += (targetCy - this.focusBox.y) * 0.1;
+
+        this.ctx.save();
+        if (this.focusBox.active) {
+            const scale = 1.5; // 1.5x zoom
+            const tx = this.canvas.width/2 - this.focusBox.x * scale;
+            const ty = this.canvas.height/2 - this.focusBox.y * scale;
+            this.ctx.translate(tx, ty);
+            this.ctx.scale(scale, scale);
+        }
+
+        this.drawVideoFeed();
+
+        // Target HUD Overlays
+        if (this.focusBox.active) {
             this.ctx.strokeStyle = '#00ff66';
-            this.ctx.lineWidth = 3;
-            this.ctx.strokeRect(x - 20, y - 20, width + 40, height + 40);
+            this.ctx.lineWidth = 2;
+            const size = 150;
+            this.ctx.strokeRect(this.focusBox.x - size/2, this.focusBox.y - size/2, size, size);
             
-            this.ctx.font = '700 16px JetBrains Mono';
+            this.ctx.font = '700 12px JetBrains Mono';
             this.ctx.fillStyle = '#00ff66';
-            this.ctx.fillText('TARGET ACQUIRED', x - 20, y - 30);
+            this.ctx.fillText('PTZ LOCK ENGAGED', this.focusBox.x - size/2, this.focusBox.y - size/2 - 10);
             
+            // Draw center cross
+            this.ctx.beginPath();
+            this.ctx.moveTo(this.focusBox.x - 10, this.focusBox.y);
+            this.ctx.lineTo(this.focusBox.x + 10, this.focusBox.y);
+            this.ctx.moveTo(this.focusBox.x, this.focusBox.y - 10);
+            this.ctx.lineTo(this.focusBox.x, this.focusBox.y + 10);
+            this.ctx.stroke();
+        }
+
+        this.ctx.restore();
+
+        if (this.focusBox.active) {
             this.updateDashboard({'TRACKED TARGETS': 1}, 1);
         } else {
             this.updateDashboard({'TRACKED TARGETS': 0}, 0);
@@ -360,6 +506,8 @@ class UI {
     // MODE 7: Biometric
     drawFaceMesh(results) {
         this.resetContext();
+        this.drawVideoFeed();
+        
         if (!results || !results.faces || results.faces.length === 0) {
             this.updateDashboard({ 'NO SIGNAL': 0 }, 0);
             return;
@@ -367,6 +515,8 @@ class UI {
 
         const faces = results.faces;
         const state = results.eyesState;
+        let headPose = "CENTERED";
+        
         const color = state === 'CLOSED' ? '#ff003c' : '#00f3ff';
 
         faces.forEach(face => {
@@ -375,13 +525,38 @@ class UI {
                 this.ctx.fillRect(point.x, point.y, 2, 2);
             });
 
+            // Head Pose Estimation algorithm
+            const nose = face.keypoints[1];
+            const leftEye = face.keypoints[33];
+            const rightEye = face.keypoints[263];
+            const top = face.keypoints[10];
+            const bottom = face.keypoints[152];
+
+            if (nose && leftEye && rightEye && top && bottom) {
+                const yaw = (nose.x - leftEye.x) / (rightEye.x - leftEye.x);
+                const pitch = (nose.y - top.y) / (bottom.y - top.y);
+
+                if (yaw < 0.35) headPose = "LOOKING RIGHT";
+                else if (yaw > 0.65) headPose = "LOOKING LEFT";
+                else if (pitch < 0.4) headPose = "LOOKING UP";
+                else if (pitch > 0.65) headPose = "LOOKING DOWN";
+
+                // Draw Head Pose Vector
+                this.ctx.strokeStyle = '#fcee0a';
+                this.ctx.lineWidth = 3;
+                this.ctx.beginPath();
+                this.ctx.moveTo(nose.x, nose.y);
+                this.ctx.lineTo(nose.x + (yaw - 0.5) * 200, nose.y + (pitch - 0.5) * 200);
+                this.ctx.stroke();
+            }
+
             if (face.box) {
                 const { xMin, yMin, width, height } = face.box;
                 this.ctx.strokeStyle = color;
                 this.ctx.lineWidth = 1;
                 this.ctx.strokeRect(xMin, yMin, width, height);
                 
-                const label = `EAR: ${results.ear.toFixed(2)} | STATE: ${state}`;
+                const label = `EAR:${results.ear.toFixed(2)} | POSE:${headPose}`;
                 this.ctx.font = '700 12px JetBrains Mono';
                 this.ctx.fillStyle = '#000';
                 this.ctx.fillRect(xMin, yMin - 20, this.ctx.measureText(label).width + 8, 20);
@@ -390,7 +565,11 @@ class UI {
             }
         });
 
-        this.updateDashboard({ [`EYES ${state}`]: faces.length }, faces.length);
+        if (headPose !== "CENTERED" && Math.random() < 0.1) {
+            this.triggerAlert("ATTENTION LOST");
+        }
+
+        this.updateDashboard({ [`EYES ${state}`]: faces.length, 'HEAD POSE': headPose }, faces.length);
     }
 
     // Common Helpers
@@ -405,7 +584,14 @@ class UI {
 
         this.liveObjectsList.innerHTML = '';
         for (const [className, count] of Object.entries(counts)) {
-            const color = this.getColor(className);
+            let color = '#00f3ff';
+            if (typeof count === 'number') {
+                color = this.getColor(className);
+            } else {
+                // For strings like HEAD POSE
+                color = '#fcee0a';
+            }
+            
             const badge = document.createElement('div');
             badge.className = 'data-badge';
             badge.style.borderColor = color;
