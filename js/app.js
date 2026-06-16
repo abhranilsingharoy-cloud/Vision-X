@@ -23,6 +23,7 @@ class App {
 
         try {
             await detector.loadModel();
+            if (window.depthEngine) await depthEngine.loadModel();
             this.setStatus('SYSTEM READY', 'ready');
             this.btnToggle.disabled = false;
         } catch (error) {
@@ -50,6 +51,7 @@ class App {
                 if(window.faceMeshDetector) faceMeshDetector.isDetecting = false;
                 if(window.poseDetector) poseDetector.isDetecting = false;
                 if(window.detector) detector.isDetecting = false;
+                if(window.depthEngine) depthEngine.isDetecting = false;
                 
                 ui.resetContext();
                 ui.updateDashboard({}, 0);
@@ -72,9 +74,20 @@ class App {
                     } catch(err) {
                         this.setStatus('FAILED TO LOAD POSE MODEL', 'error');
                     }
+                } else if (this.currentMode === 'fusion') {
+                    document.getElementById('target-selector').disabled = true;
+                    try {
+                        if (!poseDetector.model) await poseDetector.loadModel();
+                        poseDetector.isDetecting = true;
+                        detector.isDetecting = true;
+                        this.setStatus('FUSION MODE ACTIVE', 'ready');
+                    } catch(err) {
+                        this.setStatus('FAILED TO LOAD FUSION MODELS', 'error');
+                    }
                 } else {
                     document.getElementById('target-selector').disabled = false;
                     detector.isDetecting = true;
+                    if (this.currentMode === 'object' && window.depthEngine) depthEngine.isDetecting = true;
                     this.setStatus(`${this.currentMode.toUpperCase()} ACTIVE`, 'ready');
                 }
             }
@@ -116,6 +129,7 @@ class App {
         if(window.detector) detector.isDetecting = false;
         if(window.faceMeshDetector) faceMeshDetector.isDetecting = false;
         if(window.poseDetector) poseDetector.isDetecting = false;
+        if(window.depthEngine) depthEngine.isDetecting = false;
         
         this.isCameraActive = false;
         if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
@@ -148,10 +162,19 @@ class App {
             } else if (this.currentMode === 'pose' && window.poseDetector && poseDetector.isDetecting) {
                 const results = await poseDetector.detectFrame(camera.videoElement);
                 ui.drawPoseMode(results);
+            } else if (this.currentMode === 'fusion' && window.poseDetector && poseDetector.isDetecting && detector.isDetecting) {
+                const objectPreds = await detector.detectFrame(camera.videoElement);
+                const posePreds = await poseDetector.detectFrame(camera.videoElement);
+                ui.drawFusionMode(objectPreds, posePreds);
             } else if (window.detector && detector.isDetecting) {
                 const predictions = await detector.detectFrame(camera.videoElement);
                 
-                if (this.currentMode === 'object') ui.drawDetections(predictions);
+                let depthMap = null;
+                if (this.currentMode === 'object' && window.depthEngine && depthEngine.isDetecting) {
+                    depthMap = await depthEngine.detectFrame(camera.videoElement);
+                }
+                
+                if (this.currentMode === 'object') ui.drawDetections(predictions, depthMap);
                 else if (this.currentMode === 'security') ui.drawSecurityMode(predictions);
                 else if (this.currentMode === 'tripwire') ui.drawTripwireMode(predictions);
                 else if (this.currentMode === 'privacy') ui.drawPrivacyMode(predictions);
@@ -174,6 +197,7 @@ class App {
         link.download = `vision-x-capture-${Date.now()}.png`;
         link.href = tempCanvas.toDataURL('image/png');
         link.click();
+        if (window.voiceAssistant) window.voiceAssistant.speak("Screenshot captured and saved.");
     }
 }
 

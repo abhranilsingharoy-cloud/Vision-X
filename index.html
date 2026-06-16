@@ -60,6 +60,7 @@
                     <label>OPERATIONAL MODE</label>
                     <select id="mode-selector">
                         <option value="object">GENERAL TRACKING</option>
+                        <option value="fusion">FUSION TRACKING</option>
                         <option value="biometric">BIOMETRIC HUD</option>
                         <option value="security">SECURITY SENTRY</option>
                         <option value="tripwire">ANALYTICS TRIPWIRE</option>
@@ -79,6 +80,14 @@
                 <div class="control-group">
                     <label>TARGET SENSITIVITY (<span id="sensitivity-val">60%</span>)</label>
                     <input type="range" id="sensitivity-slider" min="10" max="99" value="60">
+                </div>
+
+                <div class="control-group">
+                    <label>VOICE LINK (J.A.R.V.I.S)</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="voice-toggle">
+                        <span class="slider"></span>
+                    </label>
                 </div>
 
                 <div class="control-group">
@@ -129,11 +138,16 @@
     <!-- Pose Detection Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
 
+    <!-- Depth Estimation -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/depth-estimation"></script>
+
     <!-- App Modules -->
     <script src="js/logger.js"></script>
+    <script src="js/voice.js"></script>
     <script src="js/tracker.js"></script>
     <script src="js/facemesh.js"></script>
     <script src="js/pose.js"></script>
+    <script src="js/depth.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/camera.js"></script>
     <script src="js/detector.js"></script>

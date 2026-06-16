@@ -17,10 +17,8 @@ class UI {
         this.ctx = this.canvas.getContext('2d');
         this.video = document.getElementById('video');
         
-        // Hide video element, we will manually draw it for advanced FX
         this.video.style.opacity = '0';
         
-        // Dashboard elements
         this.fpsCounter = document.getElementById('fps-counter');
         this.objectCounter = document.getElementById('object-counter');
         this.liveObjectsList = document.getElementById('live-objects-list');
@@ -30,7 +28,6 @@ class UI {
         this.audioAlertToggle = document.getElementById('audio-alert-toggle');
         this.alertSound = document.getElementById('alert-sound');
         
-        // Sensitivity Slider
         this.sensitivitySlider = document.getElementById('sensitivity-slider');
         this.sensitivityVal = document.getElementById('sensitivity-val');
         if (this.sensitivitySlider) {
@@ -47,12 +44,14 @@ class UI {
         
         this.initTargetDropdown();
         
-        // Stateful Variables for Modes
         this.tripwireCounts = { left: 0, right: 0 };
         this.lastCentroids = {};
-        this.trails = {}; // { id: [{x,y}, ...] }
+        this.trails = {}; 
         
         this.securityLockdownEnd = 0;
+        this.mediaRecorder = null;
+        this.recordedChunks = [];
+        this.isRecording = false;
         
         this.focusBox = { x: 0, y: 0, width: 0, height: 0, active: false };
     }
@@ -92,8 +91,8 @@ class UI {
         this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
     }
 
-    // MODE 1: General Tracking
-    drawDetections(predictions) {
+    // MODE 1: General Tracking + Depth
+    drawDetections(predictions, depthMap) {
         this.resetContext();
         this.drawVideoFeed();
         
@@ -111,6 +110,20 @@ class UI {
             counts[className] = (counts[className] || 0) + 1;
             
             const isTarget = (className === targetClass && score >= sensitivity);
+            
+            // Depth Calculation (Actual model or fallback proxy)
+            let depthStr = "";
+            if (className === 'person') {
+                if (depthMap && typeof depthMap.getDepth === 'function') {
+                    try { 
+                        depthStr = " " + depthMap.getDepth(y + height/2, x + width/2).toFixed(2) + "m"; 
+                    } catch(e){}
+                } else {
+                    const focalLength = 500;
+                    const distance = (1.7 * focalLength) / height;
+                    depthStr = " " + distance.toFixed(1) + "m";
+                }
+            }
 
             if (isTarget) {
                 targetDetected = true;
@@ -129,7 +142,7 @@ class UI {
                 this.ctx.moveTo(x + width, cy); this.ctx.lineTo(x + width - 20, cy); 
                 this.ctx.stroke();
                 
-                const label = `LOCKED: ${className.toUpperCase()} [${(score*100).toFixed(0)}%]`;
+                const label = `LOCKED: ${className.toUpperCase()}${depthStr} [${(score*100).toFixed(0)}%]`;
                 this.ctx.font = '800 14px JetBrains Mono';
                 this.ctx.textBaseline = 'top';
                 this.ctx.fillStyle = color;
@@ -150,7 +163,7 @@ class UI {
                 this.ctx.moveTo(x + width - cornerSize, y + height); this.ctx.lineTo(x + width, y + height); this.ctx.lineTo(x + width, y + height - cornerSize);
                 this.ctx.stroke();
 
-                const label = `[${className.toUpperCase()} : ${id}]`;
+                const label = `[${className.toUpperCase()}${depthStr} : ${id}]`;
                 this.ctx.font = '700 12px JetBrains Mono';
                 this.ctx.textBaseline = 'top';
                 this.ctx.fillStyle = '#000000';
@@ -169,7 +182,63 @@ class UI {
         if (targetDetected) this.checkAlerts(targetClass);
     }
 
-    // MODE 2: Security Sentry
+    // MODE 8: FUSION MODE
+    drawFusionMode(predictions, poses) {
+        this.resetContext();
+        this.drawVideoFeed();
+        
+        // Draw Skeletons FIRST
+        if (poses && poses.length > 0) {
+            poses.forEach(pose => {
+                if(pose.score < 0.3) return;
+                
+                pose.keypoints.forEach(kp => {
+                    if (kp.score > 0.3) {
+                        this.ctx.fillStyle = '#fcee0a';
+                        this.ctx.beginPath();
+                        this.ctx.arc(kp.x, kp.y, 4, 0, 2*Math.PI);
+                        this.ctx.fill();
+                    }
+                });
+
+                if(poseDetection.util.getAdjacentPairs) {
+                    const adjacentKeyPoints = poseDetection.util.getAdjacentPairs(poseDetection.SupportedModels.MoveNet);
+                    this.ctx.strokeStyle = '#00f3ff';
+                    this.ctx.lineWidth = 3;
+                    adjacentKeyPoints.forEach(([i, j]) => {
+                        const kp1 = pose.keypoints[i];
+                        const kp2 = pose.keypoints[j];
+                        if (kp1.score > 0.3 && kp2.score > 0.3) {
+                            this.ctx.beginPath();
+                            this.ctx.moveTo(kp1.x, kp1.y);
+                            this.ctx.lineTo(kp2.x, kp2.y);
+                            this.ctx.stroke();
+                        }
+                    });
+                }
+            });
+        }
+        
+        // Draw Object Boxes Over Top
+        predictions.forEach(pred => {
+            const [x, y, width, height] = pred.bbox;
+            const className = pred.class;
+            if (className !== 'person') return; // In fusion, focus on person
+            
+            this.ctx.strokeStyle = '#ff003c';
+            this.ctx.lineWidth = 2;
+            this.ctx.strokeRect(x, y, width, height);
+            
+            const label = `[FUSION LOCK]`;
+            this.ctx.font = '700 12px JetBrains Mono';
+            this.ctx.fillStyle = '#ff003c';
+            this.ctx.fillText(label, x, y - 5);
+        });
+
+        this.updateDashboard({'FUSION SKELETONS': poses.length}, poses.length);
+    }
+
+    // MODE 2: Security Sentry + DVR
     drawSecurityMode(predictions) {
         this.resetContext();
         
@@ -178,22 +247,32 @@ class UI {
         
         let inLockdown = false;
         if (people.length > 0) {
-            this.securityLockdownEnd = now + 5000; // 5 seconds lockdown
+            this.securityLockdownEnd = now + 5000;
         }
         if (now < this.securityLockdownEnd) {
             inLockdown = true;
         }
 
-        // Night vision or lockdown alarm effect
+        // DVR Logic
+        if (inLockdown && !this.isRecording) {
+            this.startRecording();
+        } else if (!inLockdown && this.isRecording) {
+            this.stopRecording();
+        }
+
         if (inLockdown) {
-            // Intense red vignette
             this.ctx.filter = 'grayscale(100%) brightness(40%)';
             this.drawVideoFeed();
             this.ctx.filter = 'none';
             this.ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            if (this.isRecording) {
+                this.ctx.fillStyle = '#ff003c';
+                this.ctx.font = '800 16px JetBrains Mono';
+                this.ctx.fillText('🔴 REC', 20, 30);
+            }
         } else {
-            // Calm night vision
             this.ctx.filter = 'grayscale(100%) brightness(70%) contrast(120%)';
             this.drawVideoFeed();
             this.ctx.filter = 'none';
@@ -205,7 +284,6 @@ class UI {
             const [x, y, width, height] = pred.bbox;
             const id = pred.id || 'U';
             
-            // Calculate Threat Level based on size
             const screenArea = this.canvas.width * this.canvas.height;
             const targetArea = width * height;
             const sizeRatio = targetArea / screenArea;
@@ -237,6 +315,36 @@ class UI {
         this.updateDashboard({'THREATS': people.length}, people.length);
     }
 
+    startRecording() {
+        const stream = this.canvas.captureStream(30);
+        this.mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+        this.recordedChunks = [];
+        this.mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) this.recordedChunks.push(e.data);
+        };
+        this.mediaRecorder.onstop = () => {
+            const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `security-breach-${Date.now()}.webm`;
+            a.click();
+            URL.revokeObjectURL(url);
+            if (window.voiceAssistant) window.voiceAssistant.speak("Security footage saved to local storage.");
+        };
+        this.mediaRecorder.start();
+        this.isRecording = true;
+        if (window.logger) logger.addLog("DVR RECORDING STARTED", 1.0);
+    }
+
+    stopRecording() {
+        if (this.mediaRecorder && this.isRecording) {
+            this.mediaRecorder.stop();
+            this.isRecording = false;
+            if (window.logger) logger.addLog("DVR RECORDING SAVED", 1.0);
+        }
+    }
+
     // MODE 3: Analytics Tripwire
     drawTripwireMode(predictions) {
         this.resetContext();
@@ -266,7 +374,6 @@ class UI {
             this.trails[pred.id].push({x: cx, y: cy});
             if (this.trails[pred.id].length > 20) this.trails[pred.id].shift();
 
-            // Draw Trails
             if (this.trails[pred.id].length > 1) {
                 this.ctx.beginPath();
                 this.ctx.strokeStyle = '#a200ff';
@@ -295,11 +402,9 @@ class UI {
             this.ctx.fill();
         });
 
-        // Cleanup old trails
         for (let id in this.trails) {
             if (!currentCentroids[id]) delete this.trails[id];
         }
-
         this.lastCentroids = currentCentroids;
 
         this.ctx.font = '800 24px JetBrains Mono';
@@ -322,7 +427,6 @@ class UI {
         
         people.forEach(pred => {
             let [x, y, width, height] = pred.bbox;
-            // Expand redaction slightly to ensure full coverage
             const pad = 20;
             x -= pad; y -= pad; width += pad*2; height += pad*2;
             if(x < 0) x = 0;
@@ -330,8 +434,7 @@ class UI {
             if(x+width > this.canvas.width) width = this.canvas.width - x;
             if(y+height > this.canvas.height) height = this.canvas.height - y;
             
-            // Pixelation mosaic effect
-            const pxSize = 25; // Massive pixels
+            const pxSize = 25; 
             this.ctx.imageSmoothingEnabled = false;
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = width / pxSize;
@@ -386,21 +489,17 @@ class UI {
                 }
             });
 
-            // Calculate Angles
             this.ctx.font = '700 12px JetBrains Mono';
             this.ctx.fillStyle = '#00ff66';
 
-            // Left Elbow
             if (kpDict['left_shoulder']?.score > 0.3 && kpDict['left_elbow']?.score > 0.3 && kpDict['left_wrist']?.score > 0.3) {
                 const angle = this.getAngle(kpDict['left_shoulder'], kpDict['left_elbow'], kpDict['left_wrist']);
                 this.ctx.fillText(`${angle.toFixed(0)}°`, kpDict['left_elbow'].x + 10, kpDict['left_elbow'].y);
             }
-            // Right Elbow
             if (kpDict['right_shoulder']?.score > 0.3 && kpDict['right_elbow']?.score > 0.3 && kpDict['right_wrist']?.score > 0.3) {
                 const angle = this.getAngle(kpDict['right_shoulder'], kpDict['right_elbow'], kpDict['right_wrist']);
                 this.ctx.fillText(`${angle.toFixed(0)}°`, kpDict['right_elbow'].x + 10, kpDict['right_elbow'].y);
             }
-            // Left Knee
             if (kpDict['left_hip']?.score > 0.3 && kpDict['left_knee']?.score > 0.3 && kpDict['left_ankle']?.score > 0.3) {
                 const angle = this.getAngle(kpDict['left_hip'], kpDict['left_knee'], kpDict['left_ankle']);
                 this.ctx.fillText(`${angle.toFixed(0)}°`, kpDict['left_knee'].x + 10, kpDict['left_knee'].y);
@@ -459,13 +558,12 @@ class UI {
             this.focusBox.active = false;
         }
 
-        // Smooth Lerp (PTZ camera smoothing)
         this.focusBox.x += (targetCx - this.focusBox.x) * 0.1;
         this.focusBox.y += (targetCy - this.focusBox.y) * 0.1;
 
         this.ctx.save();
         if (this.focusBox.active) {
-            const scale = 1.5; // 1.5x zoom
+            const scale = 1.5; 
             const tx = this.canvas.width/2 - this.focusBox.x * scale;
             const ty = this.canvas.height/2 - this.focusBox.y * scale;
             this.ctx.translate(tx, ty);
@@ -474,7 +572,6 @@ class UI {
 
         this.drawVideoFeed();
 
-        // Target HUD Overlays
         if (this.focusBox.active) {
             this.ctx.strokeStyle = '#00ff66';
             this.ctx.lineWidth = 2;
@@ -485,7 +582,6 @@ class UI {
             this.ctx.fillStyle = '#00ff66';
             this.ctx.fillText('PTZ LOCK ENGAGED', this.focusBox.x - size/2, this.focusBox.y - size/2 - 10);
             
-            // Draw center cross
             this.ctx.beginPath();
             this.ctx.moveTo(this.focusBox.x - 10, this.focusBox.y);
             this.ctx.lineTo(this.focusBox.x + 10, this.focusBox.y);
@@ -525,7 +621,6 @@ class UI {
                 this.ctx.fillRect(point.x, point.y, 2, 2);
             });
 
-            // Head Pose Estimation algorithm
             const nose = face.keypoints[1];
             const leftEye = face.keypoints[33];
             const rightEye = face.keypoints[263];
@@ -541,7 +636,6 @@ class UI {
                 else if (pitch < 0.4) headPose = "LOOKING UP";
                 else if (pitch > 0.65) headPose = "LOOKING DOWN";
 
-                // Draw Head Pose Vector
                 this.ctx.strokeStyle = '#fcee0a';
                 this.ctx.lineWidth = 3;
                 this.ctx.beginPath();
@@ -588,7 +682,6 @@ class UI {
             if (typeof count === 'number') {
                 color = this.getColor(className);
             } else {
-                // For strings like HEAD POSE
                 color = '#fcee0a';
             }
             
