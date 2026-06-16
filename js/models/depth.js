@@ -6,7 +6,7 @@ class DepthEngine {
 
     async loadModel() {
         try {
-            if (window.app) window.app.setStatus('Loading Depth Model...', 'warning');
+            if (typeof app !== 'undefined') app.setStatus('Loading Depth Model...', 'warning');
             
             // Wait for TFJS Depth Estimation to become available
             if (!window.depthEstimation) {

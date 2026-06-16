@@ -13,7 +13,7 @@ class PoseDetector {
 
     async loadModel() {
         try {
-            if (window.app) window.app.setStatus('Loading MoveNet Model...', 'warning');
+            if (typeof app !== 'undefined') app.setStatus('Loading MoveNet Model...', 'warning');
             
             const model = poseDetection.SupportedModels.MoveNet;
             const detectorConfig = {
@@ -25,7 +25,7 @@ class PoseDetector {
             return true;
         } catch (error) {
             console.error('Failed to load Pose model:', error);
-            if (window.app) window.app.setStatus('POSE LOAD FAILED', 'error');
+            if (typeof app !== 'undefined') app.setStatus('POSE LOAD FAILED', 'error');
             throw error;
         }
     }
@@ -52,7 +52,7 @@ class PoseDetector {
             this.currentFPS = (this.frameCount * 1000) / elapsed;
             this.frameCount = 0;
             this.lastTime = now;
-            if (window.ui) window.ui.updateFPS(this.currentFPS);
+            if (typeof ui !== 'undefined') ui.updateFPS(this.currentFPS);
         }
     }
 }

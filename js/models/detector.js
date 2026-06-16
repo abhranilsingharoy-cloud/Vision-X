@@ -18,7 +18,7 @@ class Detector {
      */
     async loadModel() {
         try {
-            if (window.app) window.app.setStatus('Initializing WebGPU/WebGL...', 'warning');
+            if (typeof app !== 'undefined') app.setStatus('Initializing WebGPU/WebGL...', 'warning');
             
             // Try WebGPU first for advanced performance
             let backendUsed = 'webgl';
@@ -34,7 +34,7 @@ class Detector {
             }
             
             await tf.ready();
-            if (window.app) window.app.setStatus(`Loading Model (${backendUsed.toUpperCase()})`, 'warning');
+            if (typeof app !== 'undefined') app.setStatus(`Loading Model (${backendUsed.toUpperCase()})`, 'warning');
             
             this.model = await cocoSsd.load({
                 base: 'lite_mobilenet_v2' // Fast model

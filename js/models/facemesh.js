@@ -20,7 +20,7 @@ class FaceMeshDetector {
 
     async loadModel() {
         try {
-            if (window.app) window.app.setStatus('Loading MediaPipe WebAssembly...', 'warning');
+            if (typeof app !== 'undefined') app.setStatus('Loading MediaPipe WebAssembly...', 'warning');
             
             const model = faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh;
             const detectorConfig = {
@@ -33,7 +33,7 @@ class FaceMeshDetector {
             return true;
         } catch (error) {
             console.error('Failed to load FaceMesh model:', error);
-            if (window.app) window.app.setStatus('BIOMETRIC LOAD FAILED', 'error');
+            if (typeof app !== 'undefined') app.setStatus('BIOMETRIC LOAD FAILED', 'error');
             throw error;
         }
     }
@@ -102,7 +102,7 @@ class FaceMeshDetector {
                 }
 
                 if (this.eyesClosed && this.closedFrames % 15 === 0) {
-                    if (window.ui) window.ui.triggerAlert("EYES CLOSED");
+                    if (typeof ui !== 'undefined') ui.triggerAlert("EYES CLOSED");
                 }
             }
 
@@ -123,7 +123,7 @@ class FaceMeshDetector {
             this.currentFPS = (this.frameCount * 1000) / elapsed;
             this.frameCount = 0;
             this.lastTime = now;
-            if (window.ui) window.ui.updateFPS(this.currentFPS);
+            if (typeof ui !== 'undefined') ui.updateFPS(this.currentFPS);
         }
     }
 }
