@@ -168,6 +168,8 @@ canvas {
 .status-badge.ready .dot { background: var(--success); }
 .status-badge.warning { border-color: var(--warning); color: var(--warning); }
 .status-badge.warning .dot { background: var(--warning); }
+.status-badge.error { border-color: var(--danger); color: var(--danger); }
+.status-badge.error .dot { background: var(--danger); }
 
 .panel-header {
     font-size: 0.85rem; font-weight: 700; color: var(--text-muted);

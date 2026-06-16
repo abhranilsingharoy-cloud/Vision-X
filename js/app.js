@@ -28,8 +28,8 @@ class App {
             this.setStatus('SYSTEM READY', 'ready');
             this.btnToggle.disabled = false;
         } catch (error) {
-            this.setStatus('MODEL LOAD FAILED', 'warning');
-            console.error(error);
+            this.setStatus('CORE MODEL LOAD FAILED', 'error');
+            console.error('App init error:', error);
         }
     }
 
@@ -48,7 +48,12 @@ class App {
             if (newMode !== this.currentMode) {
                 this.currentMode = newMode;
                 if (this.currentMode === 'biometric' && !faceMeshDetector.model) {
-                    await faceMeshDetector.loadModel();
+                    try {
+                        await faceMeshDetector.loadModel();
+                    } catch(err) {
+                        this.setStatus('FAILED TO LOAD BIOMETRIC MODEL', 'error');
+                        return;
+                    }
                 }
                 
                 if (this.currentMode === 'biometric') {
@@ -90,7 +95,14 @@ class App {
                 } else {
                     detector.isDetecting = false;
                     faceMeshDetector.isDetecting = true;
-                    if (!faceMeshDetector.model) await faceMeshDetector.loadModel();
+                    if (!faceMeshDetector.model) {
+                        try {
+                            await faceMeshDetector.loadModel();
+                        } catch(err) {
+                            this.setStatus('FAILED TO LOAD BIOMETRIC MODEL', 'error');
+                            return;
+                        }
+                    }
                     this.setStatus('BIOMETRIC ACTIVE', 'ready');
                 }
                 this.detectionLoop();
