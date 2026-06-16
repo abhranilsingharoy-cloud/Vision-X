@@ -21,8 +21,8 @@ class Camera {
             const constraints = {
                 video: {
                     facingMode: this.facingMode,
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
+                    width: { ideal: 640 },
+                    height: { ideal: 480 }
                 },
                 audio: false
             };

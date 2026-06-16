@@ -14,7 +14,8 @@ const cocoClasses = [
 class UI {
     constructor() {
         this.canvas = document.getElementById('output-canvas');
-        this.ctx = this.canvas.getContext('2d');
+        this.ctx = this.canvas.getContext('2d', { alpha: false, willReadFrequently: true });
+        this.ctx.imageSmoothingEnabled = false; // Optimize rendering speed
         this.video = document.getElementById('video');
         
         this.video.style.opacity = '0';
