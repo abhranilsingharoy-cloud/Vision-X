@@ -1,0 +1,30 @@
+{
+  "name": "vision-x",
+  "version": "2.0.0",
+  "description": "An Enterprise-Grade, 8-Mode AI Vision System featuring J.A.R.V.I.S Voice Control, Biometrics, and Depth Estimation.",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx http-server -p 8080 -c-1",
+    "dev": "npx http-server -p 8080 -c-1 -o"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/abhranilsingharoy-cloud/Vision-X.git"
+  },
+  "keywords": [
+    "ai",
+    "computer-vision",
+    "tensorflowjs",
+    "tensorflow",
+    "webrtc",
+    "facemesh",
+    "movenet",
+    "coco-ssd",
+    "voice-recognition"
+  ],
+  "author": "Abhranil Singha Roy",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}

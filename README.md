@@ -1,36 +1,66 @@
-# Vision X
+<div align="center">
+  <h1>VISION <span style="color: #ff003c;">X</span></h1>
+  <p><b>An Enterprise-Grade, 8-Mode AI Vision System featuring J.A.R.V.I.S Voice Control.</b></p>
+  
+  <p>
+    <img src="https://img.shields.io/badge/Version-2.0.0-blue?style=for-the-badge" alt="Version" />
+    <img src="https://img.shields.io/badge/TensorFlow.js-WebGPU-orange?style=for-the-badge" alt="TFJS" />
+    <img src="https://img.shields.io/badge/Vanilla_JS-ES6-yellow?style=for-the-badge" alt="JS" />
+    <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
+  </p>
+</div>
 
-Vision X is an advanced, real-time object detection web application that uses TensorFlow.js and COCO-SSD to detect, track, and label objects directly in the browser. It features a modern, glassmorphism-inspired dark mode UI.
+<br/>
 
-## Features
+## 🚀 The V2.0 Sci-Fi Overhaul
 
-* **Real-Time Detection:** Run object detection at > 15 FPS entirely in the browser.
-* **Dashboard:** Monitor FPS, real-time object counters, and view an activity log.
-* **Alert System:** Select a target object (e.g., "person") to trigger an audio-visual alert when detected.
-* **Camera Controls:** Start/stop stream, switch between front/back cameras, and save annotated screenshots.
-* **Confidence Filter:** Adjust detection sensitivity in real-time via the confidence slider.
-* **Zero Backend:** Everything runs locally on the client using WebGL via TensorFlow.js.
+Vision X transforms any standard webcam into a military-grade, heavily-stylized tactical heads-up display. Powered entirely in the browser by TensorFlow.js, this application runs **8 distinct AI Neural Network Modes** simultaneously. No backend servers required. 
 
-## Setup & Running Locally
+## 🔥 The 8 Operational Modes
 
-Since this app uses the WebRTC `getUserMedia` API, it must be served over `http://localhost` or `https://`. You cannot just open the `index.html` file via `file://`.
+1. **GENERAL TRACKING:** Scans the room for 80+ objects with an adjustable sensitivity slider. Includes a precision **Sniper Target Lock** and AI **Depth Estimation** to calculate how far objects are from the camera.
+2. **FUSION TRACKING (God Mode):** Runs both the Object Detection and Skeletal Tracking neural networks sequentially, overlaying both on the same screen.
+3. **BIOMETRIC HUD:** Maps 468 facial landmarks to calculate 3D Head Pose Orientation (Yaw, Pitch, Roll). Automatically triggers alerts if attention is lost.
+4. **SECURITY SENTRY:** Calculates dynamic threat levels based on intruder proximity. Enters a 5-second red Lockdown state upon breach, automatically triggering the **Auto-DVR System** to silently record and download a `.webm` video of the intruder.
+5. **ANALYTICS TRIPWIRE:** Draws glowing purple motion-memory trails tracking the last 20 frames of an object's path. Automatically counts left/right boundary crossings.
+6. **PRIVACY REDACTION:** Extracts bounding box image data and applies a high-performance, cinematic pixelated mosaic blur to hide identities in real-time.
+7. **POSE ESTIMATION:** Tracks human biomechanics and dynamically calculates real-time trigonometric angles of elbows, knees, and shoulders.
+8. **SMART FOCUS (Digital PTZ):** Acts as an autonomous robotic cameraman, digitally zooming in and panning the entire camera frame to keep the primary target perfectly dead-center.
 
-### Using Python
-1. Open a terminal in the project directory (`VisionX`).
-2. Run: `python -m http.server 8000`
-3. Open your browser and navigate to `http://localhost:8000`.
+## 🎙️ J.A.R.V.I.S Voice Control System
 
-### Using Node.js (http-server)
-1. Install http-server: `npm install -g http-server`
-2. Run: `http-server`
-3. Open the provided local URL in your browser.
+Turn on the **VOICE LINK** toggle and control the entire application without touching the mouse! Native integration with the browser's Speech Recognition and Speech Synthesis APIs allows the AI to respond to your commands out loud. 
 
-### Using VS Code
-1. Install the "Live Server" extension.
-2. Right-click `index.html` and select "Open with Live Server".
+* *"Initialize System"*
+* *"Enable Security Mode"*
+* *"Lock Target Cell Phone"*
+* *"Take a Screenshot"*
 
-## Extending the Project
+## ⚡ Setup & Installation
 
-* **Custom Models:** You can replace the COCO-SSD model in `detector.js` with a custom YOLOv8 model trained on custom data and converted to TF.js format.
-* **Backend Logging:** Hook into the `Logger` class in `logger.js` to send high-confidence detections to a Firebase or SQLite database via a REST API.
-* **Multi-Object Tracking:** Implement a tracking algorithm (like SORT) to give each object a unique ID across frames.
+Because Vision X relies on advanced WebRTC camera permissions, it must be run on a local server.
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/abhranilsingharoy-cloud/Vision-X.git
+cd Vision-X
+
+# 2. Run the server (Requires Node.js)
+npx http-server -p 8080 -c-1
+
+# 3. Open your browser to:
+http://localhost:8080
+```
+
+## 🛠️ Technology Stack
+
+* **Core AI:** `@tensorflow/tfjs` (WebGPU Accelerated)
+* **Object Detection:** `coco-ssd` (MobileNet V2)
+* **Skeletal Tracking:** `pose-detection` (MoveNet Multipose)
+* **Biometrics:** `face-landmarks-detection` (MediaPipe FaceMesh)
+* **Depth:** `depth-estimation` (AR Portrait Depth)
+* **Design:** Vanilla HTML/CSS with Glassmorphism & Cyberpunk Aesthetics
+
+## 📝 License
+
+Released under the [MIT License](LICENSE).
