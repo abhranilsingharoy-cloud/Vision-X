@@ -1,3 +1,16 @@
+const cocoClasses = [
+    'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat',
+    'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog',
+    'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella',
+    'handbag', 'tie', 'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball', 'kite',
+    'baseball bat', 'baseball glove', 'skateboard', 'surfboard', 'tennis racket', 'bottle',
+    'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich',
+    'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch',
+    'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote',
+    'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book',
+    'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'
+];
+
 /**
  * UI module for rendering all 7 modes.
  */
@@ -17,16 +30,38 @@ class UI {
         this.audioAlertToggle = document.getElementById('audio-alert-toggle');
         this.alertSound = document.getElementById('alert-sound');
         
+        // Sensitivity Slider
+        this.sensitivitySlider = document.getElementById('sensitivity-slider');
+        this.sensitivityVal = document.getElementById('sensitivity-val');
+        if (this.sensitivitySlider) {
+            this.sensitivitySlider.addEventListener('input', (e) => {
+                if (this.sensitivityVal) this.sensitivityVal.textContent = e.target.value + '%';
+            });
+        }
+
         this.colors = ['#00f3ff', '#ff003c', '#fcee0a', '#00ff66', '#a200ff'];
         this.classColorMap = new Map();
         
         this.lastAlertTime = 0;
         this.alertCooldown = 3000;
-        this.populatedClasses = new Set();
+        
+        // Pre-populate dropdown
+        this.initTargetDropdown();
         
         // Tripwire state
         this.tripwireCounts = { left: 0, right: 0 };
         this.lastCentroids = {};
+    }
+
+    initTargetDropdown() {
+        if (!this.targetSelector) return;
+        this.targetSelector.innerHTML = '<option value="none">DISABLED</option>';
+        cocoClasses.forEach(c => {
+            const option = document.createElement('option');
+            option.value = c;
+            option.textContent = c.toUpperCase();
+            this.targetSelector.appendChild(option);
+        });
     }
 
     getColor(className) {
@@ -48,48 +83,84 @@ class UI {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
-    // MODE 1: General Tracking
+    // MODE 1: General Tracking + Advanced Target Lock
     drawDetections(predictions) {
         this.resetContext();
         const counts = {};
+        
+        const targetClass = this.targetSelector ? this.targetSelector.value : 'none';
+        const sensitivity = this.sensitivitySlider ? parseInt(this.sensitivitySlider.value) / 100 : 0.6;
+        let targetDetected = false;
 
         predictions.forEach(pred => {
             const [x, y, width, height] = pred.bbox;
             const className = pred.class;
             const id = pred.id || Math.floor(Math.random()*1000);
-            const color = this.getColor(className);
-
+            const score = pred.score;
+            
             counts[className] = (counts[className] || 0) + 1;
-
-            this.ctx.strokeStyle = color;
-            this.ctx.lineWidth = 2;
-            this.ctx.strokeRect(x, y, width, height);
             
-            const cornerSize = 15;
-            this.ctx.lineWidth = 4;
-            this.ctx.beginPath();
-            this.ctx.moveTo(x, y + cornerSize); this.ctx.lineTo(x, y); this.ctx.lineTo(x + cornerSize, y);
-            this.ctx.moveTo(x + width - cornerSize, y); this.ctx.lineTo(x + width, y); this.ctx.lineTo(x + width, y + cornerSize);
-            this.ctx.moveTo(x, y + height - cornerSize); this.ctx.lineTo(x, y + height); this.ctx.lineTo(x + cornerSize, y + height);
-            this.ctx.moveTo(x + width - cornerSize, y + height); this.ctx.lineTo(x + width, y + height); this.ctx.lineTo(x + width, y + height - cornerSize);
-            this.ctx.stroke();
+            const isTarget = (className === targetClass && score >= sensitivity);
 
-            const label = `[${className.toUpperCase()} : ${id}]`;
-            this.ctx.font = '700 12px JetBrains Mono, monospace';
-            this.ctx.textBaseline = 'top';
-            this.ctx.fillStyle = '#000000';
-            this.ctx.fillRect(x, y - 20, this.ctx.measureText(label).width + 8, 20);
-            this.ctx.fillStyle = color;
-            this.ctx.fillText(label, x + 4, y - 16);
-            
-            const cx = x + width/2;
-            const cy = y + height/2;
-            this.ctx.fillStyle = color;
-            this.ctx.fillRect(cx - 2, cy - 2, 4, 4);
+            if (isTarget) {
+                targetDetected = true;
+                const color = '#ff003c'; // Danger red for locked target
+                
+                // Draw target box
+                this.ctx.strokeStyle = color;
+                this.ctx.lineWidth = 3;
+                this.ctx.strokeRect(x, y, width, height);
+                
+                // Draw internal sniper crosshairs
+                const cx = x + width/2;
+                const cy = y + height/2;
+                this.ctx.beginPath();
+                this.ctx.moveTo(cx, y); this.ctx.lineTo(cx, y + 20); // Top down
+                this.ctx.moveTo(cx, y + height); this.ctx.lineTo(cx, y + height - 20); // Bottom up
+                this.ctx.moveTo(x, cy); this.ctx.lineTo(x + 20, cy); // Left right
+                this.ctx.moveTo(x + width, cy); this.ctx.lineTo(x + width - 20, cy); // Right left
+                this.ctx.stroke();
+                
+                // Label
+                const label = `LOCKED: ${className.toUpperCase()} [${(score*100).toFixed(0)}%]`;
+                this.ctx.font = '800 14px JetBrains Mono, monospace';
+                this.ctx.textBaseline = 'top';
+                this.ctx.fillStyle = color;
+                this.ctx.fillText(label, x, y - 20);
+                
+            } else {
+                // Standard Draw
+                const color = this.getColor(className);
+                this.ctx.strokeStyle = color;
+                this.ctx.lineWidth = 2;
+                this.ctx.strokeRect(x, y, width, height);
+                
+                const cornerSize = 15;
+                this.ctx.lineWidth = 4;
+                this.ctx.beginPath();
+                this.ctx.moveTo(x, y + cornerSize); this.ctx.lineTo(x, y); this.ctx.lineTo(x + cornerSize, y);
+                this.ctx.moveTo(x + width - cornerSize, y); this.ctx.lineTo(x + width, y); this.ctx.lineTo(x + width, y + cornerSize);
+                this.ctx.moveTo(x, y + height - cornerSize); this.ctx.lineTo(x, y + height); this.ctx.lineTo(x + cornerSize, y + height);
+                this.ctx.moveTo(x + width - cornerSize, y + height); this.ctx.lineTo(x + width, y + height); this.ctx.lineTo(x + width, y + height - cornerSize);
+                this.ctx.stroke();
+
+                const label = `[${className.toUpperCase()} : ${id}]`;
+                this.ctx.font = '700 12px JetBrains Mono, monospace';
+                this.ctx.textBaseline = 'top';
+                this.ctx.fillStyle = '#000000';
+                this.ctx.fillRect(x, y - 20, this.ctx.measureText(label).width + 8, 20);
+                this.ctx.fillStyle = color;
+                this.ctx.fillText(label, x + 4, y - 16);
+                
+                const cx = x + width/2;
+                const cy = y + height/2;
+                this.ctx.fillStyle = color;
+                this.ctx.fillRect(cx - 2, cy - 2, 4, 4);
+            }
         });
 
         this.updateDashboard(counts, predictions.length);
-        this.checkAlerts(counts);
+        if (targetDetected) this.checkAlerts(targetClass);
     }
 
     // MODE 2: Security Sentry
@@ -343,14 +414,6 @@ class UI {
                 <span class="val">[${count}]</span>
             `;
             this.liveObjectsList.appendChild(badge);
-            
-            if (!this.populatedClasses.has(className) && !className.includes('EYES') && className !== 'THREATS' && !className.includes('CROSSED') && className !== 'REDACTED' && className !== 'POSES' && className !== 'TRACKED TARGETS') {
-                this.populatedClasses.add(className);
-                const option = document.createElement('option');
-                option.value = className;
-                option.textContent = className.toUpperCase();
-                if(this.targetSelector) this.targetSelector.appendChild(option);
-            }
         }
     }
 
@@ -358,14 +421,11 @@ class UI {
         if(this.fpsCounter) this.fpsCounter.textContent = Math.round(fps);
     }
 
-    checkAlerts(counts) {
-        if(!this.targetSelector) return;
-        const target = this.targetSelector.value;
-        if (target === 'none') return;
-
+    checkAlerts(targetName) {
         const now = Date.now();
-        if (counts[target] > 0 && (now - this.lastAlertTime > this.alertCooldown)) {
-            this.triggerAlert(`TARGET [${target.toUpperCase()}] LOCKED`);
+        if (now - this.lastAlertTime > this.alertCooldown) {
+            this.triggerAlert(`TARGET [${targetName.toUpperCase()}] LOCKED`);
+            if (window.logger) logger.addLog(`LOCK: ${targetName.toUpperCase()}`, 1.0);
             this.lastAlertTime = now;
         }
     }
