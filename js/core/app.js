@@ -48,10 +48,10 @@ class App {
                 this.currentMode = newMode;
                 
                 // Reset everything
-                if(window.faceMeshDetector) faceMeshDetector.isDetecting = false;
-                if(window.poseDetector) poseDetector.isDetecting = false;
-                if(window.detector) detector.isDetecting = false;
-                if(window.depthEngine) depthEngine.isDetecting = false;
+                if(typeof faceMeshDetector !== 'undefined') faceMeshDetector.isDetecting = false;
+                if(typeof poseDetector !== 'undefined') poseDetector.isDetecting = false;
+                if(typeof detector !== 'undefined') detector.isDetecting = false;
+                if(typeof depthEngine !== 'undefined') depthEngine.isDetecting = false;
                 
                 ui.resetContext();
                 ui.updateDashboard({}, 0);
@@ -93,7 +93,7 @@ class App {
                 } else {
                     document.getElementById('target-selector').disabled = false;
                     detector.isDetecting = true;
-                    if (this.currentMode === 'object' && window.depthEngine) depthEngine.isDetecting = true;
+                    if (this.currentMode === 'object' && typeof depthEngine !== 'undefined') depthEngine.isDetecting = true;
                     this.setStatus(`${this.currentMode.toUpperCase()} ACTIVE`, 'ready');
                 }
             }
@@ -132,10 +132,10 @@ class App {
 
     stopCamera() {
         camera.stop();
-        if(window.detector) detector.isDetecting = false;
-        if(window.faceMeshDetector) faceMeshDetector.isDetecting = false;
-        if(window.poseDetector) poseDetector.isDetecting = false;
-        if(window.depthEngine) depthEngine.isDetecting = false;
+        if(typeof detector !== 'undefined') detector.isDetecting = false;
+        if(typeof faceMeshDetector !== 'undefined') faceMeshDetector.isDetecting = false;
+        if(typeof poseDetector !== 'undefined') poseDetector.isDetecting = false;
+        if(typeof depthEngine !== 'undefined') depthEngine.isDetecting = false;
         
         this.isCameraActive = false;
         if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
@@ -164,25 +164,25 @@ class App {
         if (camera.videoElement.readyState >= 2) {
             let activeEngine = false;
 
-            if (this.currentMode === 'biometric' && window.faceMeshDetector && faceMeshDetector.isDetecting) {
+            if (this.currentMode === 'biometric' && typeof faceMeshDetector !== 'undefined' && faceMeshDetector.isDetecting) {
                 activeEngine = true;
                 const results = await faceMeshDetector.detectFrame(camera.videoElement);
                 ui.drawFaceMesh(results);
-            } else if (this.currentMode === 'pose' && window.poseDetector && poseDetector.isDetecting) {
+            } else if (this.currentMode === 'pose' && typeof poseDetector !== 'undefined' && poseDetector.isDetecting) {
                 activeEngine = true;
                 const results = await poseDetector.detectFrame(camera.videoElement);
                 ui.drawPoseMode(results);
-            } else if (this.currentMode === 'fusion' && window.poseDetector && poseDetector.isDetecting && detector.isDetecting) {
+            } else if (this.currentMode === 'fusion' && typeof poseDetector !== 'undefined' && poseDetector.isDetecting && detector.isDetecting) {
                 activeEngine = true;
                 const objectPreds = await detector.detectFrame(camera.videoElement);
                 const posePreds = await poseDetector.detectFrame(camera.videoElement);
                 ui.drawFusionMode(objectPreds, posePreds);
-            } else if (window.detector && detector.isDetecting) {
+            } else if (typeof detector !== 'undefined' && detector.isDetecting) {
                 activeEngine = true;
                 const predictions = await detector.detectFrame(camera.videoElement);
                 
                 let depthMap = null;
-                if (this.currentMode === 'object' && window.depthEngine && depthEngine.isDetecting) {
+                if (this.currentMode === 'object' && typeof depthEngine !== 'undefined' && depthEngine.isDetecting) {
                     depthMap = await depthEngine.detectFrame(camera.videoElement);
                 }
                 
@@ -224,7 +224,7 @@ class App {
         link.download = `vision-x-capture-${Date.now()}.png`;
         link.href = tempCanvas.toDataURL('image/png');
         link.click();
-        if (window.voiceAssistant) window.voiceAssistant.speak("Screenshot captured and saved.");
+        if (typeof voiceAssistant !== 'undefined') voiceAssistant.speak("Screenshot captured and saved.");
     }
 }
 

@@ -311,7 +311,7 @@ class UI {
 
         if (people.length > 0) {
             this.triggerAlert("INTRUDER DETECTED");
-            if(window.logger && Math.random() < 0.05) logger.addLog("INTRUDER DETECTED", 1.0);
+            if(typeof logger !== 'undefined' && Math.random() < 0.05) logger.addLog("INTRUDER DETECTED", 1.0);
         } else if (inLockdown) {
             this.triggerAlert("LOCKDOWN ACTIVE");
         }
@@ -334,18 +334,18 @@ class UI {
             a.download = `security-breach-${Date.now()}.webm`;
             a.click();
             URL.revokeObjectURL(url);
-            if (window.voiceAssistant) window.voiceAssistant.speak("Security footage saved to local storage.");
+            if (typeof voiceAssistant !== 'undefined') voiceAssistant.speak("Security footage saved to local storage.");
         };
         this.mediaRecorder.start();
         this.isRecording = true;
-        if (window.logger) logger.addLog("DVR RECORDING STARTED", 1.0);
+        if (typeof logger !== 'undefined') logger.addLog("DVR RECORDING STARTED", 1.0);
     }
 
     stopRecording() {
         if (this.mediaRecorder && this.isRecording) {
             this.mediaRecorder.stop();
             this.isRecording = false;
-            if (window.logger) logger.addLog("DVR RECORDING SAVED", 1.0);
+            if (typeof logger !== 'undefined') logger.addLog("DVR RECORDING SAVED", 1.0);
         }
     }
 
@@ -393,10 +393,10 @@ class UI {
                 const prevX = this.lastCentroids[pred.id];
                 if (prevX < lineX && cx >= lineX) {
                     this.tripwireCounts.right++;
-                    if(window.logger) logger.addLog(`ID ${pred.id} CROSSED RIGHT`, 1.0);
+                    if(typeof logger !== 'undefined') logger.addLog(`ID ${pred.id} CROSSED RIGHT`, 1.0);
                 } else if (prevX > lineX && cx <= lineX) {
                     this.tripwireCounts.left++;
-                    if(window.logger) logger.addLog(`ID ${pred.id} CROSSED LEFT`, 1.0);
+                    if(typeof logger !== 'undefined') logger.addLog(`ID ${pred.id} CROSSED LEFT`, 1.0);
                 }
             }
 
@@ -708,7 +708,7 @@ class UI {
         const now = Date.now();
         if (now - this.lastAlertTime > this.alertCooldown) {
             this.triggerAlert(`TARGET [${targetName.toUpperCase()}] LOCKED`);
-            if (window.logger) logger.addLog(`LOCK: ${targetName.toUpperCase()}`, 1.0);
+            if (typeof logger !== 'undefined') logger.addLog(`LOCK: ${targetName.toUpperCase()}`, 1.0);
             this.lastAlertTime = now;
         }
     }
