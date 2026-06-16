@@ -32,6 +32,7 @@ class Camera {
             
             return new Promise((resolve) => {
                 this.videoElement.onloadedmetadata = () => {
+                    this.videoElement.play().catch(e => console.warn('Autoplay blocked:', e));
                     resolve();
                 };
             });

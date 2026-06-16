@@ -96,6 +96,9 @@ class App {
                 ui.setupCanvas(dims.width, dims.height);
                 
                 // Trigger the mode selector logic to set state
+                const currentVal = this.modeSelector.value;
+                this.currentMode = null; // Force trigger
+                this.modeSelector.value = currentVal;
                 this.modeSelector.dispatchEvent(new Event('change'));
                 
                 this.detectionLoop();
