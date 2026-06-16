@@ -24,6 +24,9 @@ class App {
         try {
             await detector.loadModel();
             if (window.depthEngine) await depthEngine.loadModel();
+            if (typeof handDetector !== 'undefined') await handDetector.loadModel();
+            if (typeof ocrDetector !== 'undefined') await ocrDetector.loadModel();
+            
             this.setStatus('SYSTEM READY', 'ready');
             this.btnToggle.disabled = false;
         } catch (error) {
@@ -66,6 +69,17 @@ class App {
                         }
                     } catch(err) {
                         this.setStatus('FAILED TO LOAD BIOMETRIC MODEL', 'error');
+                    }
+                } else if (this.currentMode === 'ocr') {
+                    document.getElementById('target-selector').disabled = true;
+                    try {
+                        if (!ocrDetector.worker) await ocrDetector.loadModel();
+                        if (this.currentMode === 'ocr') {
+                            ocrDetector.isDetecting = true;
+                            this.setStatus('DATA SCANNER ACTIVE', 'ready');
+                        }
+                    } catch(err) {
+                        this.setStatus('FAILED TO LOAD OCR', 'error');
                     }
                 } else if (this.currentMode === 'pose') {
                     document.getElementById('target-selector').disabled = true;
@@ -164,11 +178,24 @@ class App {
         if (camera.videoElement.readyState >= 2) {
             let activeEngine = false;
 
+            // Gesture Control Background Process
+            const gestureToggle = document.getElementById('gesture-toggle');
+            if (gestureToggle && gestureToggle.checked && typeof handDetector !== 'undefined') {
+                handDetector.isDetecting = true;
+                handDetector.detectFrame(camera.videoElement);
+            } else if (typeof handDetector !== 'undefined') {
+                handDetector.isDetecting = false;
+            }
+
             if ((this.currentMode === 'biometric' || this.currentMode === 'drowsiness') && typeof faceMeshDetector !== 'undefined' && faceMeshDetector.isDetecting) {
                 activeEngine = true;
                 const results = await faceMeshDetector.detectFrame(camera.videoElement);
                 if (this.currentMode === 'biometric') ui.drawFaceMesh(results);
                 else ui.drawDrowsinessMode(results);
+            } else if (this.currentMode === 'ocr' && typeof ocrDetector !== 'undefined' && ocrDetector.isDetecting) {
+                activeEngine = true;
+                const results = await ocrDetector.detectFrame(camera.videoElement);
+                ui.drawOCRMode(results);
             } else if (this.currentMode === 'pose' && typeof poseDetector !== 'undefined' && poseDetector.isDetecting) {
                 activeEngine = true;
                 const results = await poseDetector.detectFrame(camera.videoElement);
@@ -182,6 +209,8 @@ class App {
                 activeEngine = true;
                 const predictions = await detector.detectFrame(camera.videoElement);
                 
+                if (typeof ui !== 'undefined') ui.updateHeatmap(predictions);
+                
                 let depthMap = null;
                 if (this.currentMode === 'object' && typeof depthEngine !== 'undefined' && depthEngine.isDetecting) {
                     depthMap = await depthEngine.detectFrame(camera.videoElement);
@@ -192,6 +221,7 @@ class App {
                 else if (this.currentMode === 'tripwire') ui.drawTripwireMode(predictions);
                 else if (this.currentMode === 'privacy') ui.drawPrivacyMode(predictions);
                 else if (this.currentMode === 'focus') ui.drawFocusMode(predictions);
+                else if (this.currentMode === 'heatmap') ui.drawHeatmapMode(predictions);
             }
 
             // Draw clean video if waiting for AI to load during mode switch

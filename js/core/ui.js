@@ -16,6 +16,14 @@ class UI {
         this.canvas = document.getElementById('output-canvas');
         this.ctx = this.canvas.getContext('2d', { alpha: false, willReadFrequently: true });
         this.ctx.imageSmoothingEnabled = false; // Optimize rendering speed
+
+        this.dashboard = document.getElementById('dashboard-content');
+        this.objectCounter = document.getElementById('object-counter');
+        
+        // Predictive Heatmap Accumulation
+        this.heatmapCanvas = document.createElement('canvas');
+        this.heatmapCtx = this.heatmapCanvas.getContext('2d', { willReadFrequently: true });
+        
         this.video = document.getElementById('video');
         
         this.video.style.opacity = '0';
@@ -89,7 +97,26 @@ class UI {
     }
 
     drawVideoFeed() {
-        this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
+        const shader = document.getElementById('shader-selector')?.value || 'none';
+        
+        if (shader === 'nightvision') {
+            this.ctx.filter = 'contrast(150%) brightness(150%) sepia(100%) hue-rotate(80deg) saturate(300%)';
+            this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.filter = 'none';
+            
+            // Render scanlines
+            this.ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            for(let i=0; i<this.canvas.height; i+=4) {
+                this.ctx.fillRect(0, i, this.canvas.width, 2);
+            }
+        } else if (shader === 'thermal') {
+            // Simulated Thermal
+            this.ctx.filter = 'invert(100%) sepia(100%) saturate(1000%) hue-rotate(290deg) contrast(200%)';
+            this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.filter = 'none';
+        } else {
+            this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
+        }
     }
 
     // MODE 1: General Tracking + Depth
@@ -850,6 +877,138 @@ class UI {
         }
 
         this.updateDashboard({ 'STATE': state, 'EAR VALUE': ear.toFixed(3) }, 1);
+    }
+
+    // MODE 10: Data Scanner (OCR)
+    drawOCRMode(data) {
+        this.resetContext();
+        this.drawVideoFeed();
+        
+        if (!data || !data.words) {
+            this.updateDashboard({'STATUS': 'SCANNING...'}, 0);
+            return;
+        }
+
+        this.ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        let wordCount = 0;
+        data.words.forEach(w => {
+            if (w.confidence > 50) {
+                wordCount++;
+                const box = w.bbox;
+                this.ctx.strokeStyle = '#00f3ff';
+                this.ctx.lineWidth = 1;
+                this.ctx.strokeRect(box.x0, box.y0, box.x1 - box.x0, box.y1 - box.y0);
+                
+                this.ctx.font = '14px JetBrains Mono';
+                this.ctx.fillStyle = '#00f3ff';
+                this.ctx.fillText(w.text, box.x0, box.y0 - 5);
+            }
+        });
+
+        if (data.text && data.text.length > 0) {
+            // Draw text block on the right side
+            this.ctx.fillStyle = 'rgba(0, 243, 255, 0.1)';
+            this.ctx.fillRect(this.canvas.width - 320, 50, 300, this.canvas.height - 100);
+            this.ctx.fillStyle = '#00f3ff';
+            this.ctx.font = '700 12px JetBrains Mono';
+            this.ctx.fillText('EXTRACTED DATA STREAM:', this.canvas.width - 310, 70);
+            
+            const lines = data.text.split('\n');
+            let y = 100;
+            lines.slice(0, 25).forEach(line => {
+                if (line.trim().length > 0) {
+                    this.ctx.fillText(line.substring(0, 35), this.canvas.width - 310, y);
+                    y += 20;
+                }
+            });
+        }
+
+        this.updateDashboard({'WORDS EXTRACTED': wordCount, 'CONFIDENCE': Math.round(data.confidence) + '%'}, wordCount);
+    }
+
+    // MODE 11: Predictive Heatmap
+    updateHeatmap(predictions) {
+        if (!this.heatmapCanvas) return;
+        if (this.heatmapCanvas.width !== this.canvas.width) {
+            this.heatmapCanvas.width = this.canvas.width;
+            this.heatmapCanvas.height = this.canvas.height;
+        }
+        
+        predictions.forEach(p => {
+            if (p.class === 'person') {
+                const [x, y, w, h] = p.bbox;
+                const cx = x + w/2;
+                const cy = y + h; // Heatmap tracks feet/floor placement
+                
+                const grad = this.heatmapCtx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(50, w));
+                grad.addColorStop(0, 'rgba(255, 0, 60, 0.03)');
+                grad.addColorStop(1, 'rgba(255, 0, 60, 0)');
+                
+                this.heatmapCtx.fillStyle = grad;
+                this.heatmapCtx.beginPath();
+                this.heatmapCtx.arc(cx, cy, Math.max(50, w), 0, Math.PI*2);
+                this.heatmapCtx.fill();
+            }
+        });
+    }
+
+    drawHeatmapMode(predictions) {
+        this.resetContext();
+        this.drawVideoFeed();
+        
+        // Darken video for heatmap pop
+        this.ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Draw the accumulated heatmap over the video
+        this.ctx.globalCompositeOperation = 'screen';
+        this.ctx.drawImage(this.heatmapCanvas, 0, 0);
+        this.ctx.globalCompositeOperation = 'source-over';
+        
+        // Faint boxes for current entities
+        predictions.forEach(p => {
+            const [x, y, width, height] = p.bbox;
+            this.ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeRect(x, y, width, height);
+            
+            if (p.class === 'person') {
+                // Draw a bright red dot at the feet
+                this.ctx.fillStyle = '#ff003c';
+                this.ctx.beginPath();
+                this.ctx.arc(x + width/2, y + height, 5, 0, Math.PI*2);
+                this.ctx.fill();
+            }
+        });
+        
+        this.ctx.font = '900 24px JetBrains Mono';
+        this.ctx.fillStyle = '#ff003c';
+        this.ctx.fillText('PREDICTIVE ANALYTICS HEATMAP', 20, 50);
+        
+        this.updateDashboard({'LIVE SUBJECTS': predictions.filter(p=>p.class==='person').length}, predictions.length);
+    }
+
+    // HAND GESTURE OVERLAY
+    drawHandOverlay(hands) {
+        // Draw over the existing context without resetting
+        hands.forEach(hand => {
+            hand.keypoints.forEach(kp => {
+                this.ctx.fillStyle = '#00f3ff';
+                this.ctx.beginPath();
+                this.ctx.arc(kp.x, kp.y, 4, 0, Math.PI*2);
+                this.ctx.fill();
+            });
+            // highlight index tip
+            const indexTip = hand.keypoints.find(k => k.name === 'index_finger_tip');
+            if (indexTip) {
+                this.ctx.fillStyle = '#fcee0a';
+                this.ctx.beginPath();
+                this.ctx.arc(indexTip.x, indexTip.y, 8, 0, Math.PI*2);
+                this.ctx.fill();
+            }
+        });
     }
 
     // Common Helpers
