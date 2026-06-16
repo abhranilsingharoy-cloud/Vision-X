@@ -60,8 +60,10 @@ class App {
                     document.getElementById('target-selector').disabled = true;
                     try {
                         if (!faceMeshDetector.model) await faceMeshDetector.loadModel();
-                        faceMeshDetector.isDetecting = true;
-                        this.setStatus('BIOMETRIC ACTIVE', 'ready');
+                        if (this.currentMode === 'biometric') {
+                            faceMeshDetector.isDetecting = true;
+                            this.setStatus('BIOMETRIC ACTIVE', 'ready');
+                        }
                     } catch(err) {
                         this.setStatus('FAILED TO LOAD BIOMETRIC MODEL', 'error');
                     }
@@ -69,8 +71,10 @@ class App {
                     document.getElementById('target-selector').disabled = true;
                     try {
                         if (!poseDetector.model) await poseDetector.loadModel();
-                        poseDetector.isDetecting = true;
-                        this.setStatus('POSE ESTIMATION ACTIVE', 'ready');
+                        if (this.currentMode === 'pose') {
+                            poseDetector.isDetecting = true;
+                            this.setStatus('POSE ESTIMATION ACTIVE', 'ready');
+                        }
                     } catch(err) {
                         this.setStatus('FAILED TO LOAD POSE MODEL', 'error');
                     }
@@ -78,9 +82,11 @@ class App {
                     document.getElementById('target-selector').disabled = true;
                     try {
                         if (!poseDetector.model) await poseDetector.loadModel();
-                        poseDetector.isDetecting = true;
-                        detector.isDetecting = true;
-                        this.setStatus('FUSION MODE ACTIVE', 'ready');
+                        if (this.currentMode === 'fusion') {
+                            poseDetector.isDetecting = true;
+                            detector.isDetecting = true;
+                            this.setStatus('FUSION MODE ACTIVE', 'ready');
+                        }
                     } catch(err) {
                         this.setStatus('FAILED TO LOAD FUSION MODELS', 'error');
                     }
@@ -156,17 +162,23 @@ class App {
         if (!this.isCameraActive) return;
 
         if (camera.videoElement.readyState >= 2) {
+            let activeEngine = false;
+
             if (this.currentMode === 'biometric' && window.faceMeshDetector && faceMeshDetector.isDetecting) {
+                activeEngine = true;
                 const results = await faceMeshDetector.detectFrame(camera.videoElement);
                 ui.drawFaceMesh(results);
             } else if (this.currentMode === 'pose' && window.poseDetector && poseDetector.isDetecting) {
+                activeEngine = true;
                 const results = await poseDetector.detectFrame(camera.videoElement);
                 ui.drawPoseMode(results);
             } else if (this.currentMode === 'fusion' && window.poseDetector && poseDetector.isDetecting && detector.isDetecting) {
+                activeEngine = true;
                 const objectPreds = await detector.detectFrame(camera.videoElement);
                 const posePreds = await poseDetector.detectFrame(camera.videoElement);
                 ui.drawFusionMode(objectPreds, posePreds);
             } else if (window.detector && detector.isDetecting) {
+                activeEngine = true;
                 const predictions = await detector.detectFrame(camera.videoElement);
                 
                 let depthMap = null;
@@ -179,6 +191,21 @@ class App {
                 else if (this.currentMode === 'tripwire') ui.drawTripwireMode(predictions);
                 else if (this.currentMode === 'privacy') ui.drawPrivacyMode(predictions);
                 else if (this.currentMode === 'focus') ui.drawFocusMode(predictions);
+            }
+
+            // Draw clean video if waiting for AI to load during mode switch
+            if (!activeEngine) {
+                ui.resetContext();
+                ui.drawVideoFeed();
+                
+                ui.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                ui.ctx.fillRect(0, 0, ui.canvas.width, ui.canvas.height);
+                
+                ui.ctx.font = '700 24px JetBrains Mono';
+                ui.ctx.fillStyle = '#00f3ff';
+                ui.ctx.textAlign = 'center';
+                ui.ctx.fillText('BOOTING AI ENGINE...', ui.canvas.width/2, ui.canvas.height/2);
+                ui.ctx.textAlign = 'left';
             }
         }
 
