@@ -187,9 +187,12 @@ class UI {
         this.resetContext();
         this.drawVideoFeed();
         
+        const validPoses = poses || [];
+        const validPreds = predictions || [];
+        
         // Draw Skeletons FIRST
-        if (poses && poses.length > 0) {
-            poses.forEach(pose => {
+        if (validPoses.length > 0) {
+            validPoses.forEach(pose => {
                 if(pose.score < 0.3) return;
                 
                 pose.keypoints.forEach(kp => {
@@ -220,7 +223,7 @@ class UI {
         }
         
         // Draw Object Boxes Over Top
-        predictions.forEach(pred => {
+        validPreds.forEach(pred => {
             const [x, y, width, height] = pred.bbox;
             const className = pred.class;
             if (className !== 'person') return; // In fusion, focus on person
@@ -235,7 +238,7 @@ class UI {
             this.ctx.fillText(label, x, y - 5);
         });
 
-        this.updateDashboard({'FUSION SKELETONS': poses.length}, poses.length);
+        this.updateDashboard({'FUSION SKELETONS': validPoses.length}, validPoses.length);
     }
 
     // MODE 2: Security Sentry + DVR
