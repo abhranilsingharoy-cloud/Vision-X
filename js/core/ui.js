@@ -155,6 +155,7 @@ class UI {
                 this.ctx.lineWidth = 2;
                 this.ctx.strokeRect(x, y, width, height);
                 
+                // Advanced corner brackets
                 const cornerSize = 15;
                 this.ctx.lineWidth = 4;
                 this.ctx.beginPath();
@@ -164,10 +165,22 @@ class UI {
                 this.ctx.moveTo(x + width - cornerSize, y + height); this.ctx.lineTo(x + width, y + height); this.ctx.lineTo(x + width, y + height - cornerSize);
                 this.ctx.stroke();
 
+                // Dynamic scanning reticle
+                const time = Date.now() / 1000;
+                const dashOffset = (time * 50) % 20;
+                this.ctx.setLineDash([5, 5]);
+                this.ctx.lineDashOffset = dashOffset;
+                this.ctx.lineWidth = 1;
+                this.ctx.beginPath();
+                this.ctx.moveTo(x + width/2, y); this.ctx.lineTo(x + width/2, y + height);
+                this.ctx.moveTo(x, y + height/2); this.ctx.lineTo(x + width, y + height/2);
+                this.ctx.stroke();
+                this.ctx.setLineDash([]);
+
                 const label = `[${className.toUpperCase()}${depthStr} : ${id}]`;
                 this.ctx.font = '700 12px JetBrains Mono';
                 this.ctx.textBaseline = 'top';
-                this.ctx.fillStyle = '#000000';
+                this.ctx.fillStyle = 'rgba(0,0,0,0.7)';
                 this.ctx.fillRect(x, y - 20, this.ctx.measureText(label).width + 8, 20);
                 this.ctx.fillStyle = color;
                 this.ctx.fillText(label, x + 4, y - 16);
@@ -175,9 +188,17 @@ class UI {
                 const cx = x + width/2;
                 const cy = y + height/2;
                 this.ctx.fillStyle = color;
-                this.ctx.fillRect(cx - 2, cy - 2, 4, 4);
+                this.ctx.fillRect(cx - 3, cy - 3, 6, 6);
             }
         });
+
+        // Global Grid Overlay
+        this.ctx.strokeStyle = 'rgba(0, 243, 255, 0.1)';
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        for(let i=0; i<this.canvas.width; i+=50) { this.ctx.moveTo(i, 0); this.ctx.lineTo(i, this.canvas.height); }
+        for(let j=0; j<this.canvas.height; j+=50) { this.ctx.moveTo(0, j); this.ctx.lineTo(this.canvas.width, j); }
+        this.ctx.stroke();
 
         this.updateDashboard(counts, predictions.length);
         if (targetDetected) this.checkAlerts(targetClass);
@@ -668,6 +689,85 @@ class UI {
         }
 
         this.updateDashboard({ [`EYES ${state}`]: faces.length, 'HEAD POSE': headPose }, faces.length);
+    }
+
+    // MODE 9: Drowsiness Monitor
+    drawDrowsinessMode(results) {
+        this.resetContext();
+        this.drawVideoFeed();
+        
+        if (!results || !results.faces || results.faces.length === 0) {
+            this.updateDashboard({ 'NO SUBJECT': 0 }, 0);
+            return;
+        }
+
+        const faces = results.faces;
+        const state = results.eyesState;
+        const ear = results.ear;
+        
+        // Vignette effect for dramatic feel
+        this.ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        const color = state === 'CLOSED' ? '#ff003c' : '#00ff66';
+
+        faces.forEach(face => {
+            const leftEyeIndices = [33, 160, 158, 133, 153, 144];
+            const rightEyeIndices = [362, 385, 387, 263, 373, 380];
+            
+            this.ctx.strokeStyle = color;
+            this.ctx.lineWidth = 3;
+            
+            // Draw polygon around eyes
+            [leftEyeIndices, rightEyeIndices].forEach(indices => {
+                this.ctx.beginPath();
+                indices.forEach((idx, i) => {
+                    const pt = face.keypoints[idx];
+                    if(i===0) this.ctx.moveTo(pt.x, pt.y);
+                    else this.ctx.lineTo(pt.x, pt.y);
+                });
+                this.ctx.closePath();
+                this.ctx.stroke();
+                
+                // Draw crosshair over eye center
+                const centerIdx = indices[0];
+                const cx = face.keypoints[centerIdx].x;
+                const cy = face.keypoints[centerIdx].y;
+                this.ctx.beginPath();
+                this.ctx.moveTo(cx - 10, cy); this.ctx.lineTo(cx + 10, cy);
+                this.ctx.moveTo(cx, cy - 10); this.ctx.lineTo(cx, cy + 10);
+                this.ctx.stroke();
+            });
+
+            // Draw large status text
+            this.ctx.font = '900 40px JetBrains Mono';
+            this.ctx.fillStyle = color;
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(state === 'CLOSED' ? 'DROWSY / SLEEPING WARNING' : 'AWAKE & ALERT', this.canvas.width/2, 60);
+            this.ctx.textAlign = 'left';
+            
+            // EAR bar
+            const barWidth = 300;
+            const fill = Math.min(1, Math.max(0, ear / 0.4)) * barWidth;
+            this.ctx.strokeStyle = '#ffffff';
+            this.ctx.lineWidth = 2;
+            this.ctx.strokeRect(this.canvas.width/2 - 150, 90, barWidth, 20);
+            this.ctx.fillStyle = color;
+            this.ctx.fillRect(this.canvas.width/2 - 150, 90, fill, 20);
+            
+            this.ctx.font = '700 14px JetBrains Mono';
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(`EYE ASPECT RATIO (EAR): ${ear.toFixed(3)}`, this.canvas.width/2, 130);
+            this.ctx.textAlign = 'left';
+        });
+
+        if (state === 'CLOSED' && Math.random() < 0.2) {
+            this.triggerAlert("WAKE UP ALARM");
+            if (typeof voiceAssistant !== 'undefined') voiceAssistant.speak("Warning. Drowsiness detected. Please wake up.");
+        }
+
+        this.updateDashboard({ 'STATE': state, 'EAR VALUE': ear.toFixed(3) }, 1);
     }
 
     // Common Helpers

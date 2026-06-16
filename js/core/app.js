@@ -56,13 +56,13 @@ class App {
                 ui.resetContext();
                 ui.updateDashboard({}, 0);
                 
-                if (this.currentMode === 'biometric') {
+                if (this.currentMode === 'biometric' || this.currentMode === 'drowsiness') {
                     document.getElementById('target-selector').disabled = true;
                     try {
                         if (!faceMeshDetector.model) await faceMeshDetector.loadModel();
-                        if (this.currentMode === 'biometric') {
+                        if (this.currentMode === 'biometric' || this.currentMode === 'drowsiness') {
                             faceMeshDetector.isDetecting = true;
-                            this.setStatus('BIOMETRIC ACTIVE', 'ready');
+                            this.setStatus(this.currentMode === 'biometric' ? 'BIOMETRIC ACTIVE' : 'DROWSINESS MONITOR ACTIVE', 'ready');
                         }
                     } catch(err) {
                         this.setStatus('FAILED TO LOAD BIOMETRIC MODEL', 'error');
@@ -164,10 +164,11 @@ class App {
         if (camera.videoElement.readyState >= 2) {
             let activeEngine = false;
 
-            if (this.currentMode === 'biometric' && typeof faceMeshDetector !== 'undefined' && faceMeshDetector.isDetecting) {
+            if ((this.currentMode === 'biometric' || this.currentMode === 'drowsiness') && typeof faceMeshDetector !== 'undefined' && faceMeshDetector.isDetecting) {
                 activeEngine = true;
                 const results = await faceMeshDetector.detectFrame(camera.videoElement);
-                ui.drawFaceMesh(results);
+                if (this.currentMode === 'biometric') ui.drawFaceMesh(results);
+                else ui.drawDrowsinessMode(results);
             } else if (this.currentMode === 'pose' && typeof poseDetector !== 'undefined' && poseDetector.isDetecting) {
                 activeEngine = true;
                 const results = await poseDetector.detectFrame(camera.videoElement);
