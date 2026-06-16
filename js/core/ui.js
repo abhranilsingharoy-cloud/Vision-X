@@ -254,6 +254,26 @@ class UI {
             this.ctx.lineWidth = 2;
             this.ctx.strokeRect(x, y, width, height);
             
+            // Advanced Fusion Lock Reticle
+            const cx = x + width/2;
+            const cy = y + height/2;
+            const time = Date.now() / 500;
+            this.ctx.save();
+            this.ctx.translate(cx, cy);
+            this.ctx.rotate(time);
+            this.ctx.beginPath();
+            this.ctx.arc(0, 0, 40, 0, Math.PI * 1.5);
+            this.ctx.strokeStyle = 'rgba(255, 0, 60, 0.8)';
+            this.ctx.lineWidth = 3;
+            this.ctx.stroke();
+            this.ctx.restore();
+            
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, cy); this.ctx.lineTo(x + width, cy);
+            this.ctx.moveTo(cx, y); this.ctx.lineTo(cx, y + height);
+            this.ctx.strokeStyle = 'rgba(255, 0, 60, 0.3)';
+            this.ctx.stroke();
+
             const label = `[FUSION LOCK]`;
             this.ctx.font = '700 12px JetBrains Mono';
             this.ctx.fillStyle = '#ff003c';
@@ -293,9 +313,11 @@ class UI {
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
             
             if (this.isRecording) {
-                this.ctx.fillStyle = '#ff003c';
-                this.ctx.font = '800 16px JetBrains Mono';
-                this.ctx.fillText('🔴 REC', 20, 30);
+                if (Math.floor(Date.now() / 500) % 2 === 0) { // Flashing REC
+                    this.ctx.fillStyle = '#ff003c';
+                    this.ctx.font = '800 16px JetBrains Mono';
+                    this.ctx.fillText('🔴 REC', 20, 30);
+                }
             }
         } else {
             this.ctx.filter = 'grayscale(100%) brightness(70%) contrast(120%)';
@@ -304,6 +326,11 @@ class UI {
             this.ctx.fillStyle = 'rgba(0, 255, 100, 0.05)';
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         }
+        
+        // Add Tactical Camera Metadata
+        this.ctx.font = '700 12px JetBrains Mono';
+        this.ctx.fillStyle = '#00f3ff';
+        this.ctx.fillText(`CAM_01 | SEC_SYS_V2.0 | ${new Date().toISOString()}`, 20, this.canvas.height - 20);
         
         people.forEach(pred => {
             const [x, y, width, height] = pred.bbox;
@@ -377,12 +404,24 @@ class UI {
         
         const lineX = this.canvas.width / 2;
         
+        // Glowing Tripwire Beam
+        this.ctx.shadowBlur = 15;
+        this.ctx.shadowColor = '#fcee0a';
         this.ctx.strokeStyle = '#fcee0a';
         this.ctx.lineWidth = 4;
         this.ctx.beginPath();
         this.ctx.moveTo(lineX, 0);
         this.ctx.lineTo(lineX, this.canvas.height);
         this.ctx.stroke();
+        this.ctx.shadowBlur = 0; // Reset
+        
+        // Animated Energy Particle
+        const time = Date.now() / 1000;
+        const particleY = (time * 150) % this.canvas.height;
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.beginPath();
+        this.ctx.arc(lineX, particleY, 8, 0, Math.PI * 2);
+        this.ctx.fill();
 
         let currentCentroids = {};
         let total = 0;
@@ -473,9 +512,23 @@ class UI {
             this.ctx.lineWidth = 2;
             this.ctx.strokeRect(x, y, width, height);
             
-            this.ctx.font = '700 12px JetBrains Mono';
+            // Add Digital Static/Glitch overlay lines on redacted area
+            this.ctx.strokeStyle = 'rgba(0, 255, 102, 0.3)';
+            this.ctx.lineWidth = 1;
+            this.ctx.beginPath();
+            for(let i = y; i < y + height; i += 10) {
+                this.ctx.moveTo(x, i);
+                this.ctx.lineTo(x + width, i);
+            }
+            this.ctx.stroke();
+            
+            this.ctx.font = '900 16px JetBrains Mono';
+            this.ctx.fillStyle = '#000000';
+            this.ctx.fillRect(x, y + height/2 - 15, width, 30);
             this.ctx.fillStyle = '#00ff66';
-            this.ctx.fillText('[REDACTED]', x + 5, y + 15);
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText('CLASSIFIED', x + width/2, y + height/2 + 5);
+            this.ctx.textAlign = 'left';
         });
 
         this.updateDashboard({'REDACTED': people.length}, people.length);
@@ -517,17 +570,29 @@ class UI {
             this.ctx.font = '700 12px JetBrains Mono';
             this.ctx.fillStyle = '#00ff66';
 
+            // Draw Angle Arcs Helper
+            const drawAngleArc = (p1, p2, p3, angle) => {
+                this.ctx.beginPath();
+                this.ctx.arc(p2.x, p2.y, 25, 0, (angle * Math.PI) / 180);
+                this.ctx.strokeStyle = 'rgba(0, 255, 102, 0.4)';
+                this.ctx.lineWidth = 15;
+                this.ctx.stroke();
+            };
+
             if (kpDict['left_shoulder']?.score > 0.3 && kpDict['left_elbow']?.score > 0.3 && kpDict['left_wrist']?.score > 0.3) {
                 const angle = this.getAngle(kpDict['left_shoulder'], kpDict['left_elbow'], kpDict['left_wrist']);
-                this.ctx.fillText(`${angle.toFixed(0)}°`, kpDict['left_elbow'].x + 10, kpDict['left_elbow'].y);
+                this.ctx.fillText(`${angle.toFixed(0)}°`, kpDict['left_elbow'].x + 15, kpDict['left_elbow'].y);
+                drawAngleArc(kpDict['left_shoulder'], kpDict['left_elbow'], kpDict['left_wrist'], angle);
             }
             if (kpDict['right_shoulder']?.score > 0.3 && kpDict['right_elbow']?.score > 0.3 && kpDict['right_wrist']?.score > 0.3) {
                 const angle = this.getAngle(kpDict['right_shoulder'], kpDict['right_elbow'], kpDict['right_wrist']);
-                this.ctx.fillText(`${angle.toFixed(0)}°`, kpDict['right_elbow'].x + 10, kpDict['right_elbow'].y);
+                this.ctx.fillText(`${angle.toFixed(0)}°`, kpDict['right_elbow'].x + 15, kpDict['right_elbow'].y);
+                drawAngleArc(kpDict['right_shoulder'], kpDict['right_elbow'], kpDict['right_wrist'], angle);
             }
             if (kpDict['left_hip']?.score > 0.3 && kpDict['left_knee']?.score > 0.3 && kpDict['left_ankle']?.score > 0.3) {
                 const angle = this.getAngle(kpDict['left_hip'], kpDict['left_knee'], kpDict['left_ankle']);
-                this.ctx.fillText(`${angle.toFixed(0)}°`, kpDict['left_knee'].x + 10, kpDict['left_knee'].y);
+                this.ctx.fillText(`${angle.toFixed(0)}°`, kpDict['left_knee'].x + 15, kpDict['left_knee'].y);
+                drawAngleArc(kpDict['left_hip'], kpDict['left_knee'], kpDict['left_ankle'], angle);
             }
 
             if(poseDetection.util.getAdjacentPairs) {
@@ -601,17 +666,34 @@ class UI {
             this.ctx.strokeStyle = '#00ff66';
             this.ctx.lineWidth = 2;
             const size = 150;
+            
+            // Spinning outer rings
+            const time = Date.now() / 1000;
+            this.ctx.save();
+            this.ctx.translate(this.focusBox.x, this.focusBox.y);
+            this.ctx.rotate(time * 1.5);
+            this.ctx.beginPath();
+            this.ctx.arc(0, 0, size/2 + 20, 0, Math.PI);
+            this.ctx.stroke();
+            this.ctx.rotate(-time * 3);
+            this.ctx.beginPath();
+            this.ctx.arc(0, 0, size/2 + 10, Math.PI/2, Math.PI * 1.5);
+            this.ctx.stroke();
+            this.ctx.restore();
+
+            // Inner target box
             this.ctx.strokeRect(this.focusBox.x - size/2, this.focusBox.y - size/2, size, size);
             
             this.ctx.font = '700 12px JetBrains Mono';
             this.ctx.fillStyle = '#00ff66';
-            this.ctx.fillText('PTZ LOCK ENGAGED', this.focusBox.x - size/2, this.focusBox.y - size/2 - 10);
+            this.ctx.fillText('PTZ LOCK ENGAGED', this.focusBox.x - size/2, this.focusBox.y - size/2 - 30);
             
+            // Center crosshair
             this.ctx.beginPath();
-            this.ctx.moveTo(this.focusBox.x - 10, this.focusBox.y);
-            this.ctx.lineTo(this.focusBox.x + 10, this.focusBox.y);
-            this.ctx.moveTo(this.focusBox.x, this.focusBox.y - 10);
-            this.ctx.lineTo(this.focusBox.x, this.focusBox.y + 10);
+            this.ctx.moveTo(this.focusBox.x - 15, this.focusBox.y);
+            this.ctx.lineTo(this.focusBox.x + 15, this.focusBox.y);
+            this.ctx.moveTo(this.focusBox.x, this.focusBox.y - 15);
+            this.ctx.lineTo(this.focusBox.x, this.focusBox.y + 15);
             this.ctx.stroke();
         }
 
