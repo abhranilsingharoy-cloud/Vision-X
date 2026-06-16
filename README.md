@@ -1,5 +1,3 @@
-<div align="center">
-  <img src="https://raw.githubusercontent.com/abhranilsingharoy-cloud/Vision-X/main/favicon.ico" alt="Logo" width="80" height="80" onerror="this.style.display='none'">
   <h1>VISION <span style="color: #ff003c;">X</span></h1>
   <p><b>An Enterprise-Grade, 8-Mode AI Vision System featuring J.A.R.V.I.S Voice Control.</b></p>
   
