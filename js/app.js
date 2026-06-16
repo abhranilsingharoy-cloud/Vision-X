@@ -3,7 +3,6 @@
  */
 class App {
     constructor() {
-        // UI Elements
         this.btnToggle = document.getElementById('btn-toggle-camera');
         this.btnFlip = document.getElementById('btn-flip-camera');
         this.btnScreenshot = document.getElementById('btn-screenshot');
@@ -14,7 +13,7 @@ class App {
 
         this.isCameraActive = false;
         this.animationFrameId = null;
-        this.currentMode = 'object'; // 'object' or 'biometric'
+        this.currentMode = 'object'; 
 
         this.init();
     }
@@ -23,7 +22,6 @@ class App {
         this.bindEvents();
 
         try {
-            // Load initial object model
             await detector.loadModel();
             this.setStatus('SYSTEM READY', 'ready');
             this.btnToggle.disabled = false;
@@ -47,29 +45,38 @@ class App {
             const newMode = e.target.value;
             if (newMode !== this.currentMode) {
                 this.currentMode = newMode;
-                if (this.currentMode === 'biometric' && !faceMeshDetector.model) {
-                    try {
-                        await faceMeshDetector.loadModel();
-                    } catch(err) {
-                        this.setStatus('FAILED TO LOAD BIOMETRIC MODEL', 'error');
-                        return;
-                    }
-                }
+                
+                // Reset everything
+                if(window.faceMeshDetector) faceMeshDetector.isDetecting = false;
+                if(window.poseDetector) poseDetector.isDetecting = false;
+                if(window.detector) detector.isDetecting = false;
+                
+                ui.resetContext();
+                ui.updateDashboard({}, 0);
                 
                 if (this.currentMode === 'biometric') {
                     document.getElementById('target-selector').disabled = true;
-                    detector.isDetecting = false;
-                    faceMeshDetector.isDetecting = true;
-                    this.setStatus('BIOMETRIC ACTIVE', 'ready');
+                    try {
+                        if (!faceMeshDetector.model) await faceMeshDetector.loadModel();
+                        faceMeshDetector.isDetecting = true;
+                        this.setStatus('BIOMETRIC ACTIVE', 'ready');
+                    } catch(err) {
+                        this.setStatus('FAILED TO LOAD BIOMETRIC MODEL', 'error');
+                    }
+                } else if (this.currentMode === 'pose') {
+                    document.getElementById('target-selector').disabled = true;
+                    try {
+                        if (!poseDetector.model) await poseDetector.loadModel();
+                        poseDetector.isDetecting = true;
+                        this.setStatus('POSE ESTIMATION ACTIVE', 'ready');
+                    } catch(err) {
+                        this.setStatus('FAILED TO LOAD POSE MODEL', 'error');
+                    }
                 } else {
                     document.getElementById('target-selector').disabled = false;
-                    faceMeshDetector.isDetecting = false;
                     detector.isDetecting = true;
-                    this.setStatus('TRACKING ACTIVE', 'ready');
+                    this.setStatus(`${this.currentMode.toUpperCase()} ACTIVE`, 'ready');
                 }
-                
-                ui.ctx.clearRect(0, 0, ui.canvas.width, ui.canvas.height);
-                ui.updateDashboard({}, 0);
             }
         });
     }
@@ -88,43 +95,29 @@ class App {
                 const dims = camera.getDimensions();
                 ui.setupCanvas(dims.width, dims.height);
                 
-                if (this.currentMode === 'object') {
-                    detector.isDetecting = true;
-                    faceMeshDetector.isDetecting = false;
-                    this.setStatus('TRACKING ACTIVE', 'ready');
-                } else {
-                    detector.isDetecting = false;
-                    faceMeshDetector.isDetecting = true;
-                    if (!faceMeshDetector.model) {
-                        try {
-                            await faceMeshDetector.loadModel();
-                        } catch(err) {
-                            this.setStatus('FAILED TO LOAD BIOMETRIC MODEL', 'error');
-                            return;
-                        }
-                    }
-                    this.setStatus('BIOMETRIC ACTIVE', 'ready');
-                }
+                // Trigger the mode selector logic to set state
+                this.modeSelector.dispatchEvent(new Event('change'));
+                
                 this.detectionLoop();
             } else {
                 this.stopCamera();
             }
         } catch (error) {
             this.setStatus('CAMERA ERROR', 'warning');
-            alert('Failed to access camera.');
+            console.error(error);
         }
     }
 
     stopCamera() {
         camera.stop();
-        detector.isDetecting = false;
-        faceMeshDetector.isDetecting = false;
-        this.isCameraActive = false;
-        if (this.animationFrameId) {
-            cancelAnimationFrame(this.animationFrameId);
-        }
+        if(window.detector) detector.isDetecting = false;
+        if(window.faceMeshDetector) faceMeshDetector.isDetecting = false;
+        if(window.poseDetector) poseDetector.isDetecting = false;
         
-        ui.ctx.clearRect(0, 0, ui.canvas.width, ui.canvas.height);
+        this.isCameraActive = false;
+        if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
+        
+        ui.resetContext();
         ui.updateDashboard({}, 0);
         
         this.btnToggle.innerHTML = '<i class="fas fa-power-off"></i> INITIALIZE SYSTEM';
@@ -146,12 +139,20 @@ class App {
         if (!this.isCameraActive) return;
 
         if (camera.videoElement.readyState >= 2) {
-            if (this.currentMode === 'object' && detector.isDetecting) {
-                const predictions = await detector.detectFrame(camera.videoElement);
-                ui.drawDetections(predictions);
-            } else if (this.currentMode === 'biometric' && faceMeshDetector.isDetecting) {
+            if (this.currentMode === 'biometric' && window.faceMeshDetector && faceMeshDetector.isDetecting) {
                 const results = await faceMeshDetector.detectFrame(camera.videoElement);
                 ui.drawFaceMesh(results);
+            } else if (this.currentMode === 'pose' && window.poseDetector && poseDetector.isDetecting) {
+                const results = await poseDetector.detectFrame(camera.videoElement);
+                ui.drawPoseMode(results);
+            } else if (window.detector && detector.isDetecting) {
+                const predictions = await detector.detectFrame(camera.videoElement);
+                
+                if (this.currentMode === 'object') ui.drawDetections(predictions);
+                else if (this.currentMode === 'security') ui.drawSecurityMode(predictions);
+                else if (this.currentMode === 'tripwire') ui.drawTripwireMode(predictions);
+                else if (this.currentMode === 'privacy') ui.drawPrivacyMode(predictions);
+                else if (this.currentMode === 'focus') ui.drawFocusMode(predictions);
             }
         }
 

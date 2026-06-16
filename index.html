@@ -59,8 +59,13 @@
                 <div class="control-group">
                     <label>OPERATIONAL MODE</label>
                     <select id="mode-selector">
-                        <option value="object">OBJECT TRACKING</option>
-                        <option value="biometric">BIOMETRIC (EYE TRACKING)</option>
+                        <option value="object">GENERAL TRACKING</option>
+                        <option value="biometric">BIOMETRIC HUD</option>
+                        <option value="security">SECURITY SENTRY</option>
+                        <option value="tripwire">ANALYTICS TRIPWIRE</option>
+                        <option value="privacy">PRIVACY REDACTION</option>
+                        <option value="pose">POSE ESTIMATION</option>
+                        <option value="focus">SMART FOCUS</option>
                     </select>
                 </div>
 
@@ -116,10 +121,14 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@1.0.2/dist/face-landmarks-detection.min.js"></script>
 
+    <!-- Pose Detection Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+
     <!-- App Modules -->
     <script src="js/logger.js"></script>
     <script src="js/tracker.js"></script>
     <script src="js/facemesh.js"></script>
+    <script src="js/pose.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/camera.js"></script>
     <script src="js/detector.js"></script>
