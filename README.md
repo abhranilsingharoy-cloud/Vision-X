@@ -113,3 +113,8 @@ http://localhost:8080
 ## 📝 License
 
 This project is licensed under the terms of the [MIT License](LICENSE).
+
+---
+<div align="center">
+  <p><i>Designed and Developed by <b>Abhranil Singha Roy</b></i></p>
+</div>
