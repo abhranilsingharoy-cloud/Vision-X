@@ -381,7 +381,10 @@ class UI {
             this.ctx.font = '700 14px JetBrains Mono';
             this.ctx.textBaseline = 'top';
             this.ctx.fillStyle = '#ff003c';
+            this.ctx.shadowColor = 'rgba(0,0,0,1)';
+            this.ctx.shadowBlur = 6;
             this.ctx.fillText(label, x, y - 20);
+            this.ctx.shadowBlur = 0;
         });
 
         if (people.length > 0) {
@@ -500,8 +503,11 @@ class UI {
 
         this.ctx.font = '800 24px JetBrains Mono';
         this.ctx.fillStyle = '#00f3ff';
+        this.ctx.shadowColor = 'rgba(0,0,0,0.9)';
+        this.ctx.shadowBlur = 8;
         this.ctx.fillText(`LEFT: ${this.tripwireCounts.left}`, 20, 40);
         this.ctx.fillText(`RIGHT: ${this.tripwireCounts.right}`, lineX + 20, 40);
+        this.ctx.shadowBlur = 0;
 
         this.updateDashboard({
             'LEFT CROSSED': this.tripwireCounts.left,
@@ -852,7 +858,11 @@ class UI {
             this.ctx.font = '900 40px JetBrains Mono';
             this.ctx.fillStyle = color;
             this.ctx.textAlign = 'center';
-            this.ctx.fillText(state === 'CLOSED' ? 'DROWSY / SLEEPING WARNING' : 'AWAKE & ALERT', this.canvas.width/2, 60);
+            this.ctx.textBaseline = 'middle';
+            this.ctx.shadowColor = 'rgba(0,0,0,0.9)';
+            this.ctx.shadowBlur = 10;
+            this.ctx.fillText(state === 'CLOSED' ? 'DROWSY / SLEEPING WARNING' : 'AWAKE & ALERT', this.canvas.width/2, 80);
+            this.ctx.shadowBlur = 0;
             this.ctx.textAlign = 'left';
             
             // EAR bar
@@ -860,15 +870,19 @@ class UI {
             const fill = Math.min(1, Math.max(0, ear / 0.4)) * barWidth;
             this.ctx.strokeStyle = '#ffffff';
             this.ctx.lineWidth = 2;
-            this.ctx.strokeRect(this.canvas.width/2 - 150, 90, barWidth, 20);
+            this.ctx.strokeRect(this.canvas.width/2 - 150, 120, barWidth, 20);
             this.ctx.fillStyle = color;
-            this.ctx.fillRect(this.canvas.width/2 - 150, 90, fill, 20);
+            this.ctx.fillRect(this.canvas.width/2 - 150, 120, fill, 20);
             
             this.ctx.font = '700 14px JetBrains Mono';
             this.ctx.fillStyle = '#ffffff';
             this.ctx.textAlign = 'center';
-            this.ctx.fillText(`EYE ASPECT RATIO (EAR): ${ear.toFixed(3)}`, this.canvas.width/2, 130);
+            this.ctx.shadowColor = 'rgba(0,0,0,0.9)';
+            this.ctx.shadowBlur = 5;
+            this.ctx.fillText(`EYE ASPECT RATIO (EAR): ${ear.toFixed(3)}`, this.canvas.width/2, 160);
+            this.ctx.shadowBlur = 0;
             this.ctx.textAlign = 'left';
+            this.ctx.textBaseline = 'alphabetic';
         });
 
         if (state === 'CLOSED' && Math.random() < 0.2) {
@@ -903,14 +917,21 @@ class UI {
                 
                 this.ctx.font = '14px JetBrains Mono';
                 this.ctx.fillStyle = '#00f3ff';
+                this.ctx.shadowColor = 'rgba(0,0,0,1)';
+                this.ctx.shadowBlur = 4;
                 this.ctx.fillText(w.text, box.x0, box.y0 - 5);
+                this.ctx.shadowBlur = 0;
             }
         });
 
         if (data.text && data.text.length > 0) {
             // Draw text block on the right side
-            this.ctx.fillStyle = 'rgba(0, 243, 255, 0.1)';
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
             this.ctx.fillRect(this.canvas.width - 320, 50, 300, this.canvas.height - 100);
+            this.ctx.strokeStyle = '#00f3ff';
+            this.ctx.lineWidth = 2;
+            this.ctx.strokeRect(this.canvas.width - 320, 50, 300, this.canvas.height - 100);
+            
             this.ctx.fillStyle = '#00f3ff';
             this.ctx.font = '700 12px JetBrains Mono';
             this.ctx.fillText('EXTRACTED DATA STREAM:', this.canvas.width - 310, 70);
