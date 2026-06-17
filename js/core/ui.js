@@ -115,10 +115,22 @@ class UI {
                 this.ctx.fillRect(0, i, this.canvas.width, 2);
             }
         } else if (shader === 'thermal') {
-            // Simulated Thermal
-            this.ctx.filter = 'invert(100%) sepia(100%) saturate(1000%) hue-rotate(290deg) contrast(200%)';
-            this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
-            this.ctx.filter = 'none';
+            if (this.globalDepthMapSource) {
+                // True Depth Thermal!
+                this.ctx.drawImage(this.globalDepthMapSource, 0, 0, this.canvas.width, this.canvas.height);
+                // Colorize the grayscale depth map: 
+                // Using multiply + a gradient, or just a CSS filter over the depth map.
+                // Brightness to boost white (near), sepia/hue-rotate to make it red/yellow/blue
+                this.ctx.globalCompositeOperation = 'screen';
+                this.ctx.fillStyle = 'rgba(255, 50, 0, 0.4)'; // Reddish glow
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                this.ctx.globalCompositeOperation = 'source-over';
+            } else {
+                // Simulated Thermal
+                this.ctx.filter = 'invert(100%) sepia(100%) saturate(1000%) hue-rotate(290deg) contrast(200%)';
+                this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
+                this.ctx.filter = 'none';
+            }
         } else {
             this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
         }
@@ -174,6 +186,37 @@ class UI {
                 this.ctx.moveTo(x, cy); this.ctx.lineTo(x + 20, cy); 
                 this.ctx.moveTo(x + width, cy); this.ctx.lineTo(x + width - 20, cy); 
                 this.ctx.stroke();
+                
+                // Draw Trajectory History
+                if (pred.history && pred.history.length > 1) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(pred.history[0].x, pred.history[0].y);
+                    for (let i = 1; i < pred.history.length; i++) {
+                        this.ctx.lineTo(pred.history[i].x, pred.history[i].y);
+                    }
+                    this.ctx.strokeStyle = 'rgba(255, 0, 60, 0.5)';
+                    this.ctx.lineWidth = 4;
+                    this.ctx.stroke();
+                    
+                    // Draw Projected Future Trajectory (10 frames ahead)
+                    if (pred.velocity) {
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(cx, cy);
+                        this.ctx.setLineDash([5, 5]);
+                        // Add pseudo-gravity if falling, else straight line
+                        let projX = cx;
+                        let projY = cy;
+                        for (let t = 1; t <= 10; t++) {
+                            projX += pred.velocity.dx;
+                            projY += pred.velocity.dy + (t * 0.5); // 0.5px/frame^2 fake gravity
+                            this.ctx.lineTo(projX, projY);
+                        }
+                        this.ctx.strokeStyle = '#fcee0a';
+                        this.ctx.lineWidth = 2;
+                        this.ctx.stroke();
+                        this.ctx.setLineDash([]);
+                    }
+                }
                 
                 const label = `LOCKED: ${className.toUpperCase()}${depthStr} [${(score*100).toFixed(0)}%]`;
                 this.ctx.font = '800 14px JetBrains Mono';

@@ -215,6 +215,21 @@ class App {
                 handDetector.isDetecting = false;
             }
 
+            const shader = document.getElementById('shader-selector')?.value;
+            if (shader === 'thermal' && typeof depthEngine !== 'undefined') {
+                depthEngine.isDetecting = true;
+                if (typeof ui !== 'undefined') {
+                    const depthMap = await depthEngine.detectFrame(camera.videoElement);
+                    ui.globalDepthMap = depthMap;
+                    if (depthMap && typeof depthMap.toCanvasImageSource === 'function') {
+                        ui.globalDepthMapSource = await depthMap.toCanvasImageSource();
+                    }
+                }
+            } else if (typeof ui !== 'undefined') {
+                ui.globalDepthMap = null;
+                ui.globalDepthMapSource = null;
+            }
+
             if ((this.currentMode === 'biometric' || this.currentMode === 'drowsiness') && typeof faceMeshDetector !== 'undefined' && faceMeshDetector.isDetecting) {
                 activeEngine = true;
                 const results = await faceMeshDetector.detectFrame(camera.videoElement);
@@ -243,8 +258,8 @@ class App {
                 
                 if (typeof ui !== 'undefined') ui.updateHeatmap(predictions);
                 
-                let depthMap = null;
-                if (this.currentMode === 'object' && typeof depthEngine !== 'undefined' && depthEngine.isDetecting) {
+                let depthMap = ui.globalDepthMap;
+                if (!depthMap && this.currentMode === 'object' && typeof depthEngine !== 'undefined' && depthEngine.isDetecting) {
                     depthMap = await depthEngine.detectFrame(camera.videoElement);
                 }
                 

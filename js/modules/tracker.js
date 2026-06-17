@@ -5,9 +5,10 @@
 class Tracker {
     constructor(maxDistance = 150, maxLostFrames = 15) {
         this.nextId = 1;
-        this.objects = []; // { id, x, y, className, lostFrames, bbox, score }
+        this.objects = []; // { id, x, y, className, lostFrames, bbox, score, history: [{x, y}], velocity: {dx, dy} }
         this.maxDistance = maxDistance;
         this.maxLostFrames = maxLostFrames;
+        this.maxHistory = 20; // Number of frames to remember for trajectory
     }
 
     /**
@@ -45,10 +46,12 @@ class Tracker {
                     className: pred.class,
                     lostFrames: 0,
                     bbox: pred.bbox,
-                    score: pred.score
+                    score: pred.score,
+                    history: [{x: centroid.x, y: centroid.y}],
+                    velocity: {dx: 0, dy: 0}
                 };
                 this.objects.push(newObj);
-                return { ...pred, id: newObj.id };
+                return { ...pred, id: newObj.id, history: newObj.history, velocity: newObj.velocity };
             });
         }
 
@@ -86,13 +89,26 @@ class Tracker {
             if (bestIndex !== -1) {
                 // Match found
                 const det = newDetections[bestIndex];
+                
+                // Calculate velocity based on last position
+                obj.velocity = {
+                    dx: det.centroid.x - obj.x,
+                    dy: det.centroid.y - obj.y
+                };
+                
                 obj.x = det.centroid.x;
                 obj.y = det.centroid.y;
                 obj.bbox = det.bbox;
                 obj.score = det.score;
                 obj.lostFrames = 0;
                 
+                // Update history
+                obj.history.push({x: obj.x, y: obj.y});
+                if (obj.history.length > this.maxHistory) obj.history.shift();
+                
                 det.id = obj.id; // Assign ID to the output
+                det.history = [...obj.history];
+                det.velocity = {...obj.velocity};
                 
                 matchedDetectionIndices.add(bestIndex);
                 matchedObjectIndices.add(i);
@@ -110,10 +126,14 @@ class Tracker {
                     className: det.class,
                     lostFrames: 0,
                     bbox: det.bbox,
-                    score: det.score
+                    score: det.score,
+                    history: [{x: det.centroid.x, y: det.centroid.y}],
+                    velocity: {dx: 0, dy: 0}
                 };
                 this.objects.push(newObj);
                 det.id = newObj.id;
+                det.history = [...newObj.history];
+                det.velocity = {...newObj.velocity};
             }
         }
 
