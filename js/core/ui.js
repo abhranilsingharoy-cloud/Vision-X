@@ -961,20 +961,27 @@ class UI {
             this.heatmapCanvas.width = this.canvas.width;
             this.heatmapCanvas.height = this.canvas.height;
         }
+
+        // Fade out heatmap slowly over time
+        this.heatmapCtx.fillStyle = 'rgba(0, 0, 0, 0.03)';
+        this.heatmapCtx.globalCompositeOperation = 'destination-out';
+        this.heatmapCtx.fillRect(0, 0, this.heatmapCanvas.width, this.heatmapCanvas.height);
+        this.heatmapCtx.globalCompositeOperation = 'source-over';
         
         predictions.forEach(p => {
             if (p.class === 'person') {
                 const [x, y, w, h] = p.bbox;
                 const cx = x + w/2;
-                const cy = y + h; // Heatmap tracks feet/floor placement
+                const cy = y + h/2; // Center of the person
                 
-                const grad = this.heatmapCtx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(50, w));
-                grad.addColorStop(0, 'rgba(255, 0, 60, 0.03)');
+                const r = Math.min(Math.max(50, w / 1.5), 200);
+                const grad = this.heatmapCtx.createRadialGradient(cx, cy, 0, cx, cy, r);
+                grad.addColorStop(0, 'rgba(255, 0, 60, 0.05)');
                 grad.addColorStop(1, 'rgba(255, 0, 60, 0)');
                 
                 this.heatmapCtx.fillStyle = grad;
                 this.heatmapCtx.beginPath();
-                this.heatmapCtx.arc(cx, cy, Math.max(50, w), 0, Math.PI*2);
+                this.heatmapCtx.arc(cx, cy, r, 0, Math.PI*2);
                 this.heatmapCtx.fill();
             }
         });
@@ -1001,10 +1008,10 @@ class UI {
             this.ctx.strokeRect(x, y, width, height);
             
             if (p.class === 'person') {
-                // Draw a bright red dot at the feet
+                // Draw a bright red dot at the center
                 this.ctx.fillStyle = '#ff003c';
                 this.ctx.beginPath();
-                this.ctx.arc(x + width/2, y + height, 5, 0, Math.PI*2);
+                this.ctx.arc(x + width/2, y + height/2, 5, 0, Math.PI*2);
                 this.ctx.fill();
             }
         });
