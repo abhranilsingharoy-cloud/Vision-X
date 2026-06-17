@@ -70,7 +70,15 @@
                         <option value="privacy">PRIVACY REDACTION</option>
                         <option value="pose">POSE ESTIMATION</option>
                         <option value="focus">SMART FOCUS</option>
+                        <option value="custom">CUSTOM AI TRAINING</option>
                     </select>
+                </div>
+
+                <div id="custom-ai-controls" style="display: none; border: 1px solid rgba(0, 243, 255, 0.3); padding: 10px; margin-bottom: 15px; background: rgba(0, 243, 255, 0.05);">
+                    <label style="color: #00f3ff; margin-bottom: 5px; display: block;">CUSTOM CLASS NAME</label>
+                    <input type="text" id="custom-class-name" placeholder="e.g. Authorized User" style="width: 100%; background: #000; color: #00f3ff; border: 1px solid #00f3ff; padding: 5px; font-family: 'JetBrains Mono'; margin-bottom: 10px;">
+                    <button id="btn-train-class" class="action-btn" style="background: rgba(0, 243, 255, 0.2); width: 100%; margin-bottom: 5px; border-color: #00f3ff; font-size: 12px;"><i class="fas fa-camera"></i> CAPTURE SAMPLES</button>
+                    <button id="btn-reset-custom" class="action-btn" style="background: rgba(255, 0, 60, 0.2); width: 100%; border-color: #ff003c; color: #ff003c; font-size: 12px;"><i class="fas fa-trash"></i> RESET MEMORY</button>
                 </div>
 
                 <div class="control-group">
@@ -169,6 +177,10 @@
     <!-- Depth Estimation -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/depth-estimation"></script>
 
+    <!-- Custom AI (MobileNet & KNN) -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/knn-classifier"></script>
+
     <!-- App Modules -->
     <script src="js/modules/logger.js"></script>
     <script src="js/modules/voice.js"></script>
@@ -181,6 +193,7 @@
     <script src="js/models/depth.js"></script>
     <script src="js/models/detector.js"></script>
     <script src="js/models/ocr.js"></script>
+    <script src="js/models/custom.js"></script>
     
     <!-- Core Application -->
     <script src="js/core/ui.js"></script>

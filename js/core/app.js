@@ -26,6 +26,7 @@ class App {
             if (window.depthEngine) await depthEngine.loadModel();
             if (typeof handDetector !== 'undefined') await handDetector.loadModel();
             if (typeof ocrDetector !== 'undefined') await ocrDetector.loadModel();
+            if (typeof customAI !== 'undefined') await customAI.loadModel();
             
             this.setStatus('SYSTEM READY', 'ready');
             this.btnToggle.disabled = false;
@@ -45,6 +46,17 @@ class App {
         this.btnFlip.addEventListener('click', () => this.flipCamera());
         this.btnScreenshot.addEventListener('click', () => this.takeScreenshot());
         
+        const customControls = document.getElementById('custom-ai-controls');
+        document.getElementById('btn-train-class').addEventListener('click', () => {
+            const className = document.getElementById('custom-class-name').value || 'UNKNOWN TARGET';
+            if (typeof customAI !== 'undefined' && this.isCameraActive) {
+                customAI.trainClass(className, camera.videoElement, 30);
+            }
+        });
+        document.getElementById('btn-reset-custom').addEventListener('click', () => {
+            if (typeof customAI !== 'undefined') customAI.clearModel();
+        });
+        
         this.modeSelector.addEventListener('change', async (e) => {
             const newMode = e.target.value;
             if (newMode !== this.currentMode) {
@@ -55,9 +67,14 @@ class App {
                 if(typeof poseDetector !== 'undefined') poseDetector.isDetecting = false;
                 if(typeof detector !== 'undefined') detector.isDetecting = false;
                 if(typeof depthEngine !== 'undefined') depthEngine.isDetecting = false;
+                if(typeof customAI !== 'undefined') customAI.isDetecting = false;
                 
                 ui.resetContext();
                 ui.updateDashboard({}, 0);
+                
+                if (customControls) {
+                    customControls.style.display = newMode === 'custom' ? 'block' : 'none';
+                }
                 
                 if (this.currentMode === 'biometric' || this.currentMode === 'drowsiness') {
                     document.getElementById('target-selector').disabled = true;
@@ -103,6 +120,17 @@ class App {
                         }
                     } catch(err) {
                         this.setStatus('FAILED TO LOAD FUSION MODELS', 'error');
+                    }
+                } else if (this.currentMode === 'custom') {
+                    document.getElementById('target-selector').disabled = true;
+                    try {
+                        if (!customAI.classifier) await customAI.loadModel();
+                        if (this.currentMode === 'custom') {
+                            customAI.isDetecting = true;
+                            this.setStatus('CUSTOM AI ACTIVE', 'ready');
+                        }
+                    } catch(err) {
+                        this.setStatus('FAILED TO LOAD CUSTOM AI', 'error');
                     }
                 } else {
                     document.getElementById('target-selector').disabled = false;
@@ -205,6 +233,10 @@ class App {
                 const objectPreds = await detector.detectFrame(camera.videoElement);
                 const posePreds = await poseDetector.detectFrame(camera.videoElement);
                 ui.drawFusionMode(objectPreds, posePreds);
+            } else if (this.currentMode === 'custom' && typeof customAI !== 'undefined' && customAI.isDetecting) {
+                activeEngine = true;
+                const result = await customAI.detectFrame(camera.videoElement);
+                ui.drawCustomMode(result, customAI.isTraining, customAI.trainingProgress);
             } else if (typeof detector !== 'undefined' && detector.isDetecting) {
                 activeEngine = true;
                 const predictions = await detector.detectFrame(camera.videoElement);

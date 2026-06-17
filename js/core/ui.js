@@ -1044,6 +1044,88 @@ class UI {
         });
     }
 
+
+
+    // MODE 12: Custom AI Training
+    drawCustomMode(prediction, isTraining, progress) {
+        this.resetContext();
+        this.drawVideoFeed();
+
+        if (isTraining) {
+            // Draw training overlay
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+            this.ctx.font = '900 32px JetBrains Mono';
+            this.ctx.fillStyle = '#00f3ff';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(`TRAINING NEURAL NETWORK: ${progress}%`, this.canvas.width / 2, this.canvas.height / 2 - 20);
+
+            // Progress bar
+            const barWidth = 400;
+            this.ctx.strokeStyle = '#00f3ff';
+            this.ctx.strokeRect(this.canvas.width / 2 - barWidth / 2, this.canvas.height / 2 + 20, barWidth, 30);
+            
+            this.ctx.fillStyle = '#00f3ff';
+            this.ctx.fillRect(this.canvas.width / 2 - barWidth / 2 + 5, this.canvas.height / 2 + 25, (barWidth - 10) * (progress / 100), 20);
+            
+            this.ctx.textAlign = 'left';
+            this.updateDashboard({'STATUS': 'TRAINING IN PROGRESS'}, 0);
+            return;
+        }
+
+        if (!prediction) {
+            this.updateDashboard({'STATUS': 'WAITING FOR DATA...'}, 0);
+            return;
+        }
+
+        const { label, confidence } = prediction;
+        
+        // Only show if confidence is decent
+        if (label !== 'NO DATA' && confidence > 0.6) {
+            const cx = this.canvas.width / 2;
+            const cy = this.canvas.height / 2;
+            const size = 300;
+
+            // Draw bounding box in center
+            this.ctx.strokeStyle = '#fcee0a';
+            this.ctx.lineWidth = 3;
+            this.ctx.strokeRect(cx - size/2, cy - size/2, size, size);
+
+            // Draw corners
+            const l = 30;
+            this.ctx.beginPath();
+            // Top left
+            this.ctx.moveTo(cx - size/2, cy - size/2 + l);
+            this.ctx.lineTo(cx - size/2, cy - size/2);
+            this.ctx.lineTo(cx - size/2 + l, cy - size/2);
+            // Top right
+            this.ctx.moveTo(cx + size/2 - l, cy - size/2);
+            this.ctx.lineTo(cx + size/2, cy - size/2);
+            this.ctx.lineTo(cx + size/2, cy - size/2 + l);
+            // Bottom left
+            this.ctx.moveTo(cx - size/2, cy + size/2 - l);
+            this.ctx.lineTo(cx - size/2, cy + size/2);
+            this.ctx.lineTo(cx - size/2 + l, cy + size/2);
+            // Bottom right
+            this.ctx.moveTo(cx + size/2, cy + size/2 - l);
+            this.ctx.lineTo(cx + size/2, cy + size/2);
+            this.ctx.lineTo(cx + size/2 - l, cy + size/2);
+            this.ctx.stroke();
+
+            // Label
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillRect(cx - size/2, cy - size/2 - 35, size, 35);
+            this.ctx.fillStyle = '#fcee0a';
+            this.ctx.font = '600 20px JetBrains Mono';
+            this.ctx.fillText(`${label.toUpperCase()} [${Math.round(confidence * 100)}%]`, cx - size/2 + 10, cy - size/2 - 10);
+            
+            this.updateDashboard({ [label.toUpperCase()]: `${Math.round(confidence * 100)}%` }, 1);
+        } else {
+            this.updateDashboard({'STATUS': 'SEARCHING...'}, 0);
+        }
+    }
+
     // Common Helpers
     updateDashboard(counts, total) {
         if(!this.objectCounter) return;
