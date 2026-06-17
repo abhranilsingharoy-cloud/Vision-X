@@ -97,6 +97,11 @@ class UI {
     }
 
     drawVideoFeed() {
+        if (this.video && this.video.videoWidth > 0 && 
+            (this.canvas.width !== this.video.videoWidth || this.canvas.height !== this.video.videoHeight)) {
+            this.setupCanvas(this.video.videoWidth, this.video.videoHeight);
+        }
+
         const shader = document.getElementById('shader-selector')?.value || 'none';
         
         if (shader === 'nightvision') {
