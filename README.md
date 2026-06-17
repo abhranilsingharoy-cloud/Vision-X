@@ -1,5 +1,5 @@
   <h1>VISION <span style="color: #ff003c;">X</span></h1>
-  <p><b>An Enterprise-Grade, 11-Mode AI Vision System featuring J.A.R.V.I.S Voice Control and Tactical Shaders.</b></p>
+  <p><b>An Enterprise-Grade, 12-Mode AI Vision System featuring J.A.R.V.I.S Voice Control and Tactical Shaders.</b></p>
   
   <p>
     <a href="https://github.com/abhranilsingharoy-cloud/Vision-X/releases">
@@ -17,13 +17,13 @@
 
 ## 🚀 Overview
 
-**Vision X** is a high-performance, completely client-side browser application that transforms any standard webcam into a military-grade, stylized tactical heads-up display. Powered entirely by **TensorFlow.js** (utilizing WebGPU acceleration), this application runs **11 distinct AI Neural Network Modes** simultaneously in the browser without relying on any backend servers.
+**Vision X** is a high-performance, completely client-side browser application that transforms any standard webcam into a military-grade, stylized tactical heads-up display. Powered entirely by **TensorFlow.js** (utilizing WebGPU acceleration), this application runs **12 distinct AI Neural Network Modes** simultaneously in the browser without relying on any backend servers.
 
 It is designed for speed, privacy, and an ultra-premium cyberpunk aesthetic.
 
 ---
 
-## 🔥 The 11 Operational Modes
+## 🔥 The 12 Operational Modes
 
 | Mode | Description | Underlying Model |
 | :--- | :--- | :--- |
@@ -38,6 +38,7 @@ It is designed for speed, privacy, and an ultra-premium cyberpunk aesthetic.
 | **9. PRIVACY REDACTION** | Extracts bounding box image data and applies a cinematic pixelated mosaic blur with tactical digital static to securely redact identities in real-time. | `COCO-SSD` + Canvas Filters |
 | **10. POSE ESTIMATION** | Tracks human biomechanics and dynamically calculates real-time trigonometric joint angles (elbows, knees, shoulders) with arc overlays. | `MoveNet Multipose` |
 | **11. SMART FOCUS** | Digital PTZ (Pan-Tilt-Zoom). Acts as an autonomous robotic cameraman, zooming and panning the entire frame to keep the primary target dead-center. | `COCO-SSD` + Canvas Translations |
+| **12. CUSTOM AI TRAINING** | Live transfer learning engine. Teach the AI to recognize specific new objects in your room in real-time by capturing samples. | `MobileNet v2` + `KNN` |
 
 ---
 
@@ -45,7 +46,7 @@ It is designed for speed, privacy, and an ultra-premium cyberpunk aesthetic.
 
 **Vision X V3.0** introduces a fully touchless interface and post-processing pipeline:
 * **Gesture Navigation:** Toggle Gesture Control to activate TensorFlow `HandPose`. Swipe your physical hand left or right in the air to cycle through operational modes.
-* **Tactical Shaders:** Toggle between high-contrast green **Night Vision (NVG)** or simulated false-color **Thermal Imaging** mapped directly onto your webcam feed using WebGL/CSS filters.
+* **Tactical Shaders:** Toggle between high-contrast green **Night Vision (NVG)** or **True Depth Thermal Imaging** (which activates a real-time depth-estimation neural network to map physical distance into mathematical thermal heat signatures).
 
 ---
 
@@ -81,6 +82,7 @@ Vision-X/
 │   │   ├── 🧠 facemesh.js      # MediaPipe Face Landmarks
 │   │   ├── 🧠 hands.js         # MediaPipe HandPose Gesture Tracking
 │   │   ├── 🧠 ocr.js           # Tesseract.js Optical Character Recognition
+│   │   ├── 🧠 custom.js        # MobileNet & KNN Transfer Learning
 │   │   └── 🧠 pose.js          # MoveNet Pose Estimation
 │   └── 📁 modules/             # Standalone System Features
 │       ├── 📜 logger.js        # HUD Telemetry & Event Logging
@@ -121,6 +123,7 @@ http://localhost:8080
 * **Gesture Control:** `hand-pose-detection` (MediaPipe Hands)
 * **Data Scanner:** `tesseract.js` (WebAssembly OCR)
 * **Depth Estimation:** `depth-estimation` (AR Portrait Depth)
+* **Transfer Learning:** `mobilenet` + `knn-classifier`
 * **Design & UI:** Vanilla HTML5 Canvas + Native CSS Custom Properties
 
 ## 📝 License
