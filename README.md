@@ -67,6 +67,41 @@ Turn on the **VOICE LINK** toggle and control the entire application hands-free.
 
 The codebase is engineered with strict modularity. The JavaScript logic is decoupled into `core` rendering, `models` definitions, and standalone feature `modules`.
 
+### 🎨 Visual Architecture
+
+VisionX is structured as a client-side AI application. The core loop acts as the coordinator for all neural networks:
+
+```mermaid
+graph TD
+    Cam[WebRTC Camera Stream] --> App[app.js - Main Orchestrator]
+    Mic[Microphone Input] --> Voice[voice.js - J.A.R.V.I.S Voice Control]
+    Voice -.->|Changes State| App
+    
+    App --> Mode{Mode Selector}
+    
+    Mode -- Object/Security/Tripwire --> Det[detector.js - COCO-SSD]
+    Mode -- Biometric/Drowsiness --> Face[facemesh.js - MediaPipe]
+    Mode -- Pose/Fusion --> Pose[pose.js - MoveNet]
+    Mode -- OCR Scanner --> OCR[ocr.js - Tesseract]
+    Mode -- Custom Training --> Custom[custom.js - MobileNet+KNN]
+    
+    App -.->|Background Process| Depth[depth.js - AR Portrait]
+    App -.->|Background Process| Hands[hands.js - Handpose Gestures]
+    
+    Hands -.->|Swipe to change Mode| Mode
+    
+    Det --> UI[ui.js - Rendering Engine]
+    Face --> UI
+    Pose --> UI
+    OCR --> UI
+    Custom --> UI
+    Depth -->|Depth Map for Thermal| UI
+    
+    UI <-->|Centroid & Trajectory Data| Tracker[tracker.js]
+    
+    UI --> Canvas[HTML5 Canvas Overlay]
+```
+
 ```text
 Vision-X/
 ├── 📁 css/
